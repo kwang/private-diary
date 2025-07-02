@@ -16,68 +16,79 @@ struct AudioEntryView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 // Title Field
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Title")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     TextField("Enter title...", text: $title)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.callout)
                 }
                 .padding(.horizontal)
                 
                 // Mood Selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("How are you feeling? (Optional)")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ForEach(moods, id: \.self) { emoji in
                                 Button(emoji) {
                                     mood = mood == emoji ? "" : emoji
                                 }
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color.clear)
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
                                 .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(mood == emoji ? Color.accentColor.opacity(0.3) : Color(.systemGray4), lineWidth: 0.5)
+                                )
                             }
                         }
                         .padding(.horizontal)
                     }
                 }
+                .padding(.horizontal)
                 
                 // Audio Recording Section
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     // Recording Status
-                    VStack(spacing: 8) {
+                    VStack(spacing: 6) {
                         if audioRecorder.isRecording {
                             Text("Recording...")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                                 .foregroundColor(.red)
                             
                             Text(audioRecorder.formattedTime)
-                                .font(.title2)
-                                .fontWeight(.medium)
+                                .font(.title3)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.red)
                         } else if audioRecorder.hasRecording {
                             Text("Recording Complete")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                                 .foregroundColor(.green)
                             
                             Text(audioRecorder.formattedTime)
-                                .font(.title2)
-                                .fontWeight(.medium)
+                                .font(.title3)
+                                .fontWeight(.semibold)
                         } else {
                             Text("Ready to Record")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                                 .foregroundColor(.secondary)
                         }
                     }
                     
                     // Recording Controls
-                    HStack(spacing: 32) {
+                    HStack(spacing: 28) {
                         // Record/Stop Button
                         Button {
                             if audioRecorder.isRecording {
@@ -87,7 +98,7 @@ struct AudioEntryView: View {
                             }
                         } label: {
                             Image(systemName: audioRecorder.isRecording ? "stop.circle.fill" : "mic.circle.fill")
-                                .font(.system(size: 64))
+                                .font(.system(size: 56))
                                 .foregroundColor(audioRecorder.isRecording ? .red : .accentColor)
                         }
                         .disabled(!audioRecorder.hasPermission)
@@ -98,7 +109,7 @@ struct AudioEntryView: View {
                                 audioRecorder.playRecording()
                             } label: {
                                 Image(systemName: audioRecorder.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                    .font(.system(size: 48))
+                                    .font(.system(size: 44))
                                     .foregroundColor(.accentColor)
                             }
                         }
@@ -106,32 +117,43 @@ struct AudioEntryView: View {
                     
                     // Permission Status
                     if !audioRecorder.hasPermission {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 6) {
                             Text("Microphone access required")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                                 .foregroundColor(.red)
                             
                             Button("Grant Permission") {
                                 audioRecorder.requestPermission()
                             }
+                            .font(.caption)
                             .buttonStyle(.bordered)
                         }
                     }
                 }
-                .padding()
+                .padding(16)
                 .background(Color(.systemGray6))
-                .cornerRadius(16)
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(.systemGray4), lineWidth: 0.5)
+                )
                 .padding(.horizontal)
                 
                 // Notes Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Additional Notes (Optional)")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10)
                             .fill(Color(.systemGray6))
-                            .frame(minHeight: 100)
+                            .frame(minHeight: 90)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                         
                         Group {
                             if #available(iOS 16.0, *) {
@@ -143,13 +165,14 @@ struct AudioEntryView: View {
                         }
                         .padding(12)
                         .background(Color.clear)
-                        .font(.body)
+                        .font(.callout)
                         
                         if notes.isEmpty {
                             Text("Any additional thoughts to accompany your recording?")
                                 .foregroundColor(.secondary)
+                                .font(.callout)
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 20)
+                                .padding(.vertical, 16)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -162,19 +185,22 @@ struct AudioEntryView: View {
                 Button {
                     saveEntry()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 14))
                         Text("Save to Notes")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
-                    .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 12)
                     .background(Color.accentColor)
-                    .cornerRadius(12)
+                    .cornerRadius(10)
                 }
                 .padding(.horizontal)
                 .disabled(!audioRecorder.hasRecording)
+                .opacity(!audioRecorder.hasRecording ? 0.6 : 1.0)
             }
             .navigationTitle("New Audio Entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -186,6 +212,7 @@ struct AudioEntryView: View {
                         }
                         dismiss()
                     }
+                    .font(.subheadline)
                 }
             }
         }

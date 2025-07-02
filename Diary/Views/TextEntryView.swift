@@ -13,65 +13,79 @@ struct TextEntryView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
+            VStack(spacing: 16) {
                 // Title Field
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Title")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     TextField("Enter title...", text: $title)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.callout)
                 }
                 .padding(.horizontal)
                 
                 // Mood Selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("How are you feeling? (Optional)")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ForEach(moods, id: \.self) { emoji in
                                 Button(emoji) {
                                     mood = mood == emoji ? "" : emoji
                                 }
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color.clear)
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
                                 .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(mood == emoji ? Color.accentColor.opacity(0.3) : Color(.systemGray4), lineWidth: 0.5)
+                                )
                             }
                         }
                         .padding(.horizontal)
                     }
                 }
+                .padding(.horizontal)
                 
                 // Content Editor
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Your thoughts")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10)
                             .fill(Color(.systemGray6))
-                            .frame(minHeight: 200)
+                            .frame(minHeight: 180)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                         
-                                            Group {
-                        if #available(iOS 16.0, *) {
-                            TextEditor(text: $content)
-                                .scrollContentBackground(.hidden)
-                        } else {
-                            TextEditor(text: $content)
+                        Group {
+                            if #available(iOS 16.0, *) {
+                                TextEditor(text: $content)
+                                    .scrollContentBackground(.hidden)
+                            } else {
+                                TextEditor(text: $content)
+                            }
                         }
-                    }
-                    .padding(12)
-                    .background(Color.clear)
-                    .font(.body)
+                        .padding(12)
+                        .background(Color.clear)
+                        .font(.callout)
                         
                         if content.isEmpty {
                             Text("What's on your mind today?")
                                 .foregroundColor(.secondary)
+                                .font(.callout)
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 20)
+                                .padding(.vertical, 16)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -84,19 +98,22 @@ struct TextEntryView: View {
                 Button {
                     saveEntry()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 14))
                         Text("Save to Notes")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
-                    .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 12)
                     .background(Color.accentColor)
-                    .cornerRadius(12)
+                    .cornerRadius(10)
                 }
                 .padding(.horizontal)
                 .disabled(content.isEmpty)
+                .opacity(content.isEmpty ? 0.6 : 1.0)
             }
             .navigationTitle("New Text Entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -105,6 +122,7 @@ struct TextEntryView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .font(.subheadline)
                 }
             }
         }
@@ -118,6 +136,7 @@ struct TextEntryView: View {
             }
         } message: {
             Text("Your diary entry has been saved and will be shared to Notes.")
+                .font(.callout)
         }
     }
     

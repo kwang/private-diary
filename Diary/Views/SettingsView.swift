@@ -15,14 +15,16 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "bell")
                             .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
                         
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("Enable Reminders")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             if notificationService.reminderEnabled {
                                 Text("Reminder set for \(notificationService.reminderTime, formatter: timeFormatter)")
-                                    .font(.caption)
+                                    .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -60,21 +62,25 @@ struct SettingsView: View {
                                 }
                             }
                         ))
+                        .scaleEffect(0.9)
                     }
                     
                     if notificationService.reminderEnabled {
                         HStack {
                             Image(systemName: "clock")
                                 .foregroundColor(.accentColor)
+                                .font(.system(size: 14))
                             
                             Text("Reminder Time")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             Spacer()
                             
                             Button(timeFormatter.string(from: notificationService.reminderTime)) {
                                 showingTimePicker = true
                             }
+                            .font(.caption)
                             .foregroundColor(.accentColor)
                         }
                     }
@@ -83,14 +89,16 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundColor(.orange)
+                                .font(.system(size: 14))
                             
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 2) {
                                 Text("Permission Required")
-                                    .font(.headline)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .foregroundColor(.orange)
                                 
                                 Text("Grant notification permission in Settings")
-                                    .font(.caption)
+                                    .font(.caption2)
                                     .foregroundColor(.secondary)
                             }
                             
@@ -101,7 +109,7 @@ struct SettingsView: View {
                                     UIApplication.shared.open(settingsUrl)
                                 }
                             }
-                            .font(.caption)
+                            .font(.caption2)
                             .buttonStyle(.bordered)
                         }
                     }
@@ -112,9 +120,11 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "text.alignleft")
                             .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
                         
                         Text("Default Entry Type")
-                            .font(.headline)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                         
                         Spacer()
                         
@@ -124,6 +134,7 @@ struct SettingsView: View {
                             }
                         }
                         .pickerStyle(MenuPickerStyle())
+                        .font(.caption)
                     }
                 }
                 
@@ -132,33 +143,37 @@ struct SettingsView: View {
                     HStack {
                         Image(systemName: "info.circle")
                             .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
                         
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("Private Diary")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             Text("Your personal diary companion")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                         
                         Spacer()
                         
                         Text("v1.0")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
                     
                     HStack {
                         Image(systemName: "note.text")
                             .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
                         
-                        VStack(alignment: .leading) {
+                        VStack(alignment: .leading, spacing: 2) {
                             Text("Privacy First")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             Text("All entries are saved locally and to your Notes app")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                     }
@@ -171,6 +186,7 @@ struct SettingsView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .font(.subheadline)
                 }
             }
         }

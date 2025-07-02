@@ -15,24 +15,25 @@ struct HomeView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 // Header
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Private Diary")
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
+                        .font(.title2)
+                        .fontWeight(.semibold)
                     
                     Text("Your personal diary companion")
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
                 
                 // Start Entry Options
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     Text("Start Entry")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal)
                     
@@ -40,7 +41,7 @@ struct HomeView: View {
                         GridItem(.flexible()),
                         GridItem(.flexible()),
                         GridItem(.flexible())
-                    ], spacing: 16) {
+                    ], spacing: 12) {
                         EntryTypeButton(
                             type: .text,
                             action: { showingTextEntry = true }
@@ -61,15 +62,16 @@ struct HomeView: View {
                 
                 // Recent Entries
                 if !diaryService.entries.isEmpty {
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Text("Recent Entries")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             Spacer()
                             
                             Text("\(diaryService.entries.count) entries")
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                             
                             Button(editMode == .inactive ? "Edit" : "Done") {
@@ -87,27 +89,28 @@ struct HomeView: View {
                                 EntryRow(entry: entry)
                                     .listRowBackground(Color.clear)
                                     .listRowSeparator(.hidden)
-                                    .padding(.vertical, 4)
+                                    .padding(.vertical, 2)
                             }
                             .onDelete(perform: deleteEntries)
                         }
                         .listStyle(PlainListStyle())
-                        .frame(maxHeight: 400)
+                        .frame(maxHeight: 350)
                     }
                 } else {
                     Spacer()
                     
-                    VStack(spacing: 16) {
+                    VStack(spacing: 12) {
                         Image(systemName: "book.closed")
-                            .font(.system(size: 48))
+                            .font(.system(size: 36))
                             .foregroundColor(.secondary)
                         
                         Text("No entries yet")
-                            .font(.headline)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                             .foregroundColor(.secondary)
                         
                         Text("Start by creating your first diary entry above")
-                            .font(.subheadline)  
+                            .font(.caption)  
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                     }
@@ -125,6 +128,7 @@ struct HomeView: View {
                         showingSettings = true
                     } label: {
                         Image(systemName: "gearshape")
+                            .font(.system(size: 16))
                     }
                 }
             }
@@ -183,19 +187,23 @@ struct EntryTypeButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Image(systemName: type.icon)
-                    .font(.system(size: 24))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 18))
+                    .foregroundColor(.accentColor)
                 
                 Text(type.rawValue)
-                    .font(.caption)
+                    .font(.caption2)
                     .fontWeight(.medium)
                     .foregroundColor(.primary)
             }
-            .frame(maxWidth: .infinity, minHeight: 80)
+            .frame(maxWidth: .infinity, minHeight: 64)
             .background(Color(.systemGray6))
-            .cornerRadius(16)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+            )
         }
         .buttonStyle(PlainButtonStyle())
     }
@@ -217,70 +225,86 @@ struct EntryRow: View {
                 showingFullEntry = true
             }
         } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
                     Image(systemName: entry.type.icon)
                         .foregroundColor(.accentColor)
+                        .font(.system(size: 14))
                     
-                    Text(entry.title)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .foregroundColor(.primary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(entry.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                            .foregroundColor(.primary)
+                        
+                        if !entry.content.isEmpty {
+                            Text(entry.content)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
                     
                     Spacer()
                     
-                    // Media status indicator
-                    if entry.type == .audio || entry.type == .video {
-                        Image(systemName: "play.circle")
-                            .foregroundColor(.accentColor)
-                            .font(.caption)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        // Media status indicator
+                        if entry.type == .audio || entry.type == .video {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
+                        }
+                        
+                        Text(entry.timeAgo)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
                     }
-                    
-                    Text(entry.timeAgo)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
-                if !entry.content.isEmpty {
-                    Text(entry.content)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
                 }
                 
                 // Media playback indicator
                 if entry.type == .audio && entry.audioURL != nil {
-                    HStack {
+                    HStack(spacing: 4) {
                         Image(systemName: "waveform")
                             .foregroundColor(.secondary)
-                            .font(.caption)
+                            .font(.system(size: 10))
                         Text("Tap to play audio")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                    .padding(.leading, 18)
                 } else if entry.type == .video && entry.videoURL != nil {
-                    HStack {
-                        Image(systemName: "video")
+                    HStack(spacing: 4) {
+                        Image(systemName: "video.fill")
                             .foregroundColor(.secondary)
-                            .font(.caption)
+                            .font(.system(size: 10))
                         Text("Tap to play video")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundColor(.secondary)
                     }
+                    .padding(.leading, 18)
                 }
                 
                 // Mood indicator
                 if let mood = entry.mood, !mood.isEmpty {
-                    Text("Mood: \(mood)")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top, 2)
+                    HStack(spacing: 4) {
+                        Text(mood)
+                            .font(.caption2)
+                        Text("mood")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
                 }
             }
-            .padding()
+            .padding(12)
             .background(Color(.systemGray6))
-            .cornerRadius(12)
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+            )
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showingFullEntry) {
@@ -302,46 +326,62 @@ struct FullEntryView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 12) {
                     // Header
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Image(systemName: entry.type.icon)
                                 .foregroundColor(.accentColor)
-                                .font(.title2)
+                                .font(.system(size: 16))
                             
                             Text(entry.type.rawValue)
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                                .modifier(TrackingModifier())
                             
                             Spacer()
                             
                             Text(entry.formattedDate)
-                                .font(.caption)
+                                .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
                         
                         Text(entry.title)
-                            .font(.title2)
-                            .fontWeight(.bold)
+                            .font(.title3)
+                            .fontWeight(.semibold)
                     }
                     
                     // Content
                     if !entry.content.isEmpty {
                         Text(entry.content)
-                            .font(.body)
-                            .padding()
+                            .font(.callout)
+                            .lineSpacing(2)
+                            .padding(12)
                             .background(Color(.systemGray6))
-                            .cornerRadius(12)
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                     }
                     
                     // Mood
                     if let mood = entry.mood, !mood.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text("Mood")
-                                .font(.headline)
-                            Text(mood)
-                                .font(.title)
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                                .modifier(TrackingModifier())
+                            HStack(spacing: 6) {
+                                Text(mood)
+                                    .font(.title2)
+                                Text("feeling")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
                         }
                     }
                     
@@ -356,8 +396,19 @@ struct FullEntryView: View {
                     Button("Done") {
                         dismiss()
                     }
+                    .font(.subheadline)
                 }
             }
+        }
+    }
+}
+
+struct TrackingModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.tracking(0.5)
+        } else {
+            content
         }
     }
 }

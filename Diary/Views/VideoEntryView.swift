@@ -17,72 +17,83 @@ struct VideoEntryView: View {
     
     var body: some View {
         NavigationView {
-            VStack(spacing: 24) {
+            VStack(spacing: 20) {
                 // Title Field
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text("Title")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     TextField("Enter title...", text: $title)
                         .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.callout)
                 }
                 .padding(.horizontal)
                 
                 // Mood Selection
                 VStack(alignment: .leading, spacing: 8) {
                     Text("How are you feeling? (Optional)")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ForEach(moods, id: \.self) { emoji in
                                 Button(emoji) {
                                     mood = mood == emoji ? "" : emoji
                                 }
-                                .font(.title2)
-                                .frame(width: 44, height: 44)
-                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color.clear)
+                                .font(.title3)
+                                .frame(width: 38, height: 38)
+                                .background(mood == emoji ? Color.accentColor.opacity(0.2) : Color(.systemGray6))
                                 .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(mood == emoji ? Color.accentColor.opacity(0.3) : Color(.systemGray4), lineWidth: 0.5)
+                                )
                             }
                         }
                         .padding(.horizontal)
                     }
                 }
+                .padding(.horizontal)
                 
                 // Video Recording Section
-                VStack(spacing: 20) {
+                VStack(spacing: 16) {
                     if let videoURL = videoRecorder.videoURL {
                         // Video Preview
                         VideoPlayerView(url: videoURL)
-                            .frame(height: 200)
-                            .cornerRadius(12)
+                            .frame(height: 180)
+                            .cornerRadius(10)
                             .clipped()
                         
-                        HStack(spacing: 16) {
+                        HStack(spacing: 12) {
                             Button("Record New") {
                                 showingCamera = true
                             }
+                            .font(.caption)
                             .buttonStyle(.bordered)
                             
                             Button("Use This Video") {
                                 // Video is already saved, just continue
                             }
+                            .font(.caption)
                             .buttonStyle(.borderedProminent)
                         }
                     } else {
                         // Record Button
-                        VStack(spacing: 16) {
+                        VStack(spacing: 12) {
                             Image(systemName: "video.circle.fill")
-                                .font(.system(size: 64))
+                                .font(.system(size: 52))
                                 .foregroundColor(.accentColor)
                             
                             Text("Record Video")
-                                .font(.headline)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
                             
                             Text(UIImagePickerController.isSourceTypeAvailable(.camera) ? 
                                 "Tap to start recording your video diary entry" : 
                                 "Tap to select a video from your photo library")
-                                .font(.subheadline)
+                                .font(.caption)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                             
@@ -90,23 +101,30 @@ struct VideoEntryView: View {
                                   "Start Recording" : "Select Video") {
                                 showingCamera = true
                             }
+                            .font(.caption)
                             .buttonStyle(.borderedProminent)
                             .disabled(!videoRecorder.hasPermission)
                         }
-                        .padding()
+                        .padding(16)
                         .background(Color(.systemGray6))
-                        .cornerRadius(16)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(.systemGray4), lineWidth: 0.5)
+                        )
                         
                         if !videoRecorder.hasPermission {
-                            VStack(spacing: 8) {
+                            VStack(spacing: 6) {
                                 Text(UIImagePickerController.isSourceTypeAvailable(.camera) ?
                                     "Camera access required" : "Photo library access required")
-                                    .font(.headline)
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
                                     .foregroundColor(.red)
                                 
                                 Button("Grant Permission") {
                                     videoRecorder.requestPermission()
                                 }
+                                .font(.caption)
                                 .buttonStyle(.bordered)
                             }
                         }
@@ -117,12 +135,17 @@ struct VideoEntryView: View {
                 // Notes Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Additional Notes (Optional)")
-                        .font(.headline)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
                     
                     ZStack(alignment: .topLeading) {
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 10)
                             .fill(Color(.systemGray6))
-                            .frame(minHeight: 100)
+                            .frame(minHeight: 90)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
                         
                         Group {
                             if #available(iOS 16.0, *) {
@@ -134,13 +157,14 @@ struct VideoEntryView: View {
                         }
                         .padding(12)
                         .background(Color.clear)
-                        .font(.body)
+                        .font(.callout)
                         
                         if notes.isEmpty {
                             Text("Any additional thoughts to accompany your video?")
                                 .foregroundColor(.secondary)
+                                .font(.callout)
                                 .padding(.horizontal, 16)
-                                .padding(.vertical, 20)
+                                .padding(.vertical, 16)
                                 .allowsHitTesting(false)
                         }
                     }
@@ -153,19 +177,22 @@ struct VideoEntryView: View {
                 Button {
                     saveEntry()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         Image(systemName: "square.and.arrow.down")
+                            .font(.system(size: 14))
                         Text("Save to Notes")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
                     }
-                    .font(.headline)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding()
+                    .padding(.vertical, 12)
                     .background(Color.accentColor)
-                    .cornerRadius(12)
+                    .cornerRadius(10)
                 }
                 .padding(.horizontal)
                 .disabled(videoRecorder.videoURL == nil)
+                .opacity(videoRecorder.videoURL == nil ? 0.6 : 1.0)
             }
             .navigationTitle("New Video Entry")
             .navigationBarTitleDisplayMode(.inline)
@@ -174,6 +201,7 @@ struct VideoEntryView: View {
                     Button("Cancel") {
                         dismiss()
                     }
+                    .font(.subheadline)
                 }
             }
         }
