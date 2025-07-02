@@ -290,7 +290,7 @@ class AudioRecorder: ObservableObject {
         
         do {
             audioPlayer = try AVAudioPlayer(contentsOf: url)
-            audioPlayer?.delegate = AudioPlayerDelegate(recorder: self)
+            audioPlayer?.delegate = AudioRecorderDelegate(recorder: self)
             audioPlayer?.play()
             isPlaying = true
         } catch {
@@ -309,7 +309,7 @@ class AudioRecorder: ObservableObject {
     }
 }
 
-class AudioPlayerDelegate: NSObject, AVAudioPlayerDelegate {
+class AudioRecorderDelegate: NSObject, AVAudioPlayerDelegate {
     let recorder: AudioRecorder
     
     init(recorder: AudioRecorder) {

@@ -161,15 +161,16 @@ struct EntryTypeButton: View {
 
 struct EntryRow: View {
     let entry: DiaryEntry
-    @StateObject private var mediaPlayer = MediaPlayer()
     @State private var showingFullEntry = false
+    @State private var showingAudioPlayer = false
+    @State private var showingVideoPlayer = false
     
     var body: some View {
         Button {
             if entry.type == .audio && entry.audioURL != nil {
-                handleAudioPlayback()
+                showingAudioPlayer = true
             } else if entry.type == .video && entry.videoURL != nil {
-                handleVideoPlayback()
+                showingVideoPlayer = true
             } else {
                 showingFullEntry = true
             }
@@ -188,15 +189,9 @@ struct EntryRow: View {
                     
                     // Media status indicator
                     if entry.type == .audio || entry.type == .video {
-                        if mediaPlayer.isPlaying && mediaPlayer.currentEntryID == entry.id {
-                            Image(systemName: "speaker.wave.2")
-                                .foregroundColor(.accentColor)
-                                .font(.caption)
-                        } else {
-                            Image(systemName: "play.circle")
-                                .foregroundColor(.accentColor)
-                                .font(.caption)
-                        }
+                        Image(systemName: "play.circle")
+                            .foregroundColor(.accentColor)
+                            .font(.caption)
                     }
                     
                     Text(entry.timeAgo)
@@ -249,92 +244,12 @@ struct EntryRow: View {
         .sheet(isPresented: $showingFullEntry) {
             FullEntryView(entry: entry)
         }
-    }
-    
-    private func handleAudioPlayback() {
-        guard let audioURL = entry.audioURL else { return }
-        
-        if mediaPlayer.isPlaying && mediaPlayer.currentEntryID == entry.id {
-            mediaPlayer.stop()
-        } else {
-            mediaPlayer.playAudio(url: audioURL, entryID: entry.id)
+        .sheet(isPresented: $showingAudioPlayer) {
+            AudioPlayerView(entry: entry)
         }
-    }
-    
-    private func handleVideoPlayback() {
-        guard let videoURL = entry.videoURL else { return }
-        mediaPlayer.playVideo(url: videoURL, entryID: entry.id)
-    }
-}
-
-@MainActor
-class MediaPlayer: ObservableObject {
-    @Published var isPlaying = false
-    @Published var currentEntryID: UUID?
-    
-    private var audioPlayer: AVPlayer?
-    
-    func playAudio(url: URL, entryID: UUID) {
-        stop() // Stop any current playback
-        
-        audioPlayer = AVPlayer(url: url)
-        currentEntryID = entryID
-        isPlaying = true
-        
-        audioPlayer?.play()
-        
-        // Listen for playback completion
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: audioPlayer?.currentItem,
-            queue: .main
-        ) { [weak self] _ in
-            self?.stop()
+        .sheet(isPresented: $showingVideoPlayer) {
+            VideoDiaryPlayerView(entry: entry)
         }
-    }
-    
-    func playVideo(url: URL, entryID: UUID) {
-        stop() // Stop any current playback
-        
-        // For video, we'll use AVPlayerViewController for better experience
-        let player = AVPlayer(url: url)
-        let playerViewController = AVPlayerViewController()
-        playerViewController.player = player
-        
-        // Get the current view controller to present from
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootViewController = window.rootViewController {
-            
-            var topController = rootViewController
-            while let presentedViewController = topController.presentedViewController {
-                topController = presentedViewController
-            }
-            
-            currentEntryID = entryID
-            isPlaying = true
-            
-            topController.present(playerViewController, animated: true) {
-                player.play()
-            }
-            
-            // Listen for dismissal
-            NotificationCenter.default.addObserver(
-                forName: .AVPlayerItemDidPlayToEndTime,
-                object: player.currentItem,
-                queue: .main
-            ) { [weak self] _ in
-                self?.stop()
-            }
-        }
-    }
-    
-    func stop() {
-        audioPlayer?.pause()
-        audioPlayer = nil
-        isPlaying = false
-        currentEntryID = nil
-        NotificationCenter.default.removeObserver(self)
     }
 }
 
