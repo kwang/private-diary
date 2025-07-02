@@ -199,7 +199,11 @@ struct AudioEntryView: View {
     private func saveEntry() {
         var entry = DiaryEntry(type: .audio, title: title, content: notes)
         entry.mood = mood.isEmpty ? nil : mood
-        entry.audioURL = audioRecorder.recordingURL
+        
+        // Save audio file to persistent storage
+        if let tempURL = audioRecorder.recordingURL {
+            entry.audioURL = diaryService.saveAudioFile(tempURL)
+        }
         
         diaryService.saveEntry(entry)
         showingSaveAlert = true

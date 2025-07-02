@@ -1,4 +1,6 @@
 import SwiftUI
+import AVFoundation
+import AVKit
 
 struct HomeView: View {
     @StateObject private var diaryService = DiaryService()
@@ -159,34 +161,247 @@ struct EntryTypeButton: View {
 
 struct EntryRow: View {
     let entry: DiaryEntry
+    @StateObject private var mediaPlayer = MediaPlayer()
+    @State private var showingFullEntry = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: entry.type.icon)
-                    .foregroundColor(.accentColor)
+        Button {
+            if entry.type == .audio && entry.audioURL != nil {
+                handleAudioPlayback()
+            } else if entry.type == .video && entry.videoURL != nil {
+                handleVideoPlayback()
+            } else {
+                showingFullEntry = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Image(systemName: entry.type.icon)
+                        .foregroundColor(.accentColor)
+                    
+                    Text(entry.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    // Media status indicator
+                    if entry.type == .audio || entry.type == .video {
+                        if mediaPlayer.isPlaying && mediaPlayer.currentEntryID == entry.id {
+                            Image(systemName: "speaker.wave.2")
+                                .foregroundColor(.accentColor)
+                                .font(.caption)
+                        } else {
+                            Image(systemName: "play.circle")
+                                .foregroundColor(.accentColor)
+                                .font(.caption)
+                        }
+                    }
+                    
+                    Text(entry.timeAgo)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 
-                Text(entry.title)
-                    .font(.headline)
-                    .lineLimit(1)
+                if !entry.content.isEmpty {
+                    Text(entry.content)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
                 
-                Spacer()
+                // Media playback indicator
+                if entry.type == .audio && entry.audioURL != nil {
+                    HStack {
+                        Image(systemName: "waveform")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                        Text("Tap to play audio")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                } else if entry.type == .video && entry.videoURL != nil {
+                    HStack {
+                        Image(systemName: "video")
+                            .foregroundColor(.secondary)
+                            .font(.caption)
+                        Text("Tap to play video")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
-                Text(entry.timeAgo)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Mood indicator
+                if let mood = entry.mood, !mood.isEmpty {
+                    Text("Mood: \(mood)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.top, 2)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $showingFullEntry) {
+            FullEntryView(entry: entry)
+        }
+    }
+    
+    private func handleAudioPlayback() {
+        guard let audioURL = entry.audioURL else { return }
+        
+        if mediaPlayer.isPlaying && mediaPlayer.currentEntryID == entry.id {
+            mediaPlayer.stop()
+        } else {
+            mediaPlayer.playAudio(url: audioURL, entryID: entry.id)
+        }
+    }
+    
+    private func handleVideoPlayback() {
+        guard let videoURL = entry.videoURL else { return }
+        mediaPlayer.playVideo(url: videoURL, entryID: entry.id)
+    }
+}
+
+@MainActor
+class MediaPlayer: ObservableObject {
+    @Published var isPlaying = false
+    @Published var currentEntryID: UUID?
+    
+    private var audioPlayer: AVPlayer?
+    
+    func playAudio(url: URL, entryID: UUID) {
+        stop() // Stop any current playback
+        
+        audioPlayer = AVPlayer(url: url)
+        currentEntryID = entryID
+        isPlaying = true
+        
+        audioPlayer?.play()
+        
+        // Listen for playback completion
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: audioPlayer?.currentItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.stop()
+        }
+    }
+    
+    func playVideo(url: URL, entryID: UUID) {
+        stop() // Stop any current playback
+        
+        // For video, we'll use AVPlayerViewController for better experience
+        let player = AVPlayer(url: url)
+        let playerViewController = AVPlayerViewController()
+        playerViewController.player = player
+        
+        // Get the current view controller to present from
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController {
+            
+            var topController = rootViewController
+            while let presentedViewController = topController.presentedViewController {
+                topController = presentedViewController
             }
             
-            if !entry.content.isEmpty {
-                Text(entry.content)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
+            currentEntryID = entryID
+            isPlaying = true
+            
+            topController.present(playerViewController, animated: true) {
+                player.play()
+            }
+            
+            // Listen for dismissal
+            NotificationCenter.default.addObserver(
+                forName: .AVPlayerItemDidPlayToEndTime,
+                object: player.currentItem,
+                queue: .main
+            ) { [weak self] _ in
+                self?.stop()
             }
         }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
+    }
+    
+    func stop() {
+        audioPlayer?.pause()
+        audioPlayer = nil
+        isPlaying = false
+        currentEntryID = nil
+        NotificationCenter.default.removeObserver(self)
+    }
+}
+
+struct FullEntryView: View {
+    let entry: DiaryEntry
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: entry.type.icon)
+                                .foregroundColor(.accentColor)
+                                .font(.title2)
+                            
+                            Text(entry.type.rawValue)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Text(entry.formattedDate)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Text(entry.title)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                    }
+                    
+                    // Content
+                    if !entry.content.isEmpty {
+                        Text(entry.content)
+                            .font(.body)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                    }
+                    
+                    // Mood
+                    if let mood = entry.mood, !mood.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Mood")
+                                .font(.headline)
+                            Text(mood)
+                                .font(.title)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("Entry Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
     }
 }
 

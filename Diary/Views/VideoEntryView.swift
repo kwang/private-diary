@@ -190,7 +190,11 @@ struct VideoEntryView: View {
     private func saveEntry() {
         var entry = DiaryEntry(type: .video, title: title, content: notes)
         entry.mood = mood.isEmpty ? nil : mood
-        entry.videoURL = videoRecorder.videoURL
+        
+        // Save video file to persistent storage
+        if let tempURL = videoRecorder.videoURL {
+            entry.videoURL = diaryService.saveVideoFile(tempURL)
+        }
         
         diaryService.saveEntry(entry)
         showingSaveAlert = true
