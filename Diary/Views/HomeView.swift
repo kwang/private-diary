@@ -9,6 +9,7 @@ struct HomeView: View {
     @State private var showingAudioEntry = false
     @State private var showingVideoEntry = false
     @State private var showingSettings = false
+    @State private var showingCalendar = false
     @State private var editMode: EditMode = .inactive
     @State private var showingDeleteAlert = false
     @State private var entriesToDelete: IndexSet?
@@ -123,6 +124,15 @@ struct HomeView: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        showingCalendar = true
+                    } label: {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 16))
+                    }
+                }
+                
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingSettings = true
@@ -145,6 +155,9 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(notificationService: notificationService)
+        }
+        .sheet(isPresented: $showingCalendar) {
+            CalendarView(diaryService: diaryService)
         }
         .task {
             if !notificationService.isAuthorized {
