@@ -29,16 +29,37 @@ struct SettingsView: View {
                         
                         Spacer()
                         
-                        Toggle("", isOn: .constant(notificationService.reminderEnabled))
-                            .onTapGesture {
-                                if notificationService.isAuthorized {
-                                    notificationService.toggleReminder()
-                                } else {
-                                    Task {
-                                        await notificationService.requestPermission()
+                        Toggle("", isOn: Binding(
+                            get: { notificationService.reminderEnabled },
+                            set: { newValue in
+                                if newValue {
+                                    // User wants to enable reminders
+                                    if notificationService.isAuthorized {
+                                        // Permission already granted
+                                        notificationService.reminderEnabled = true
+                                        notificationService.saveSettings()
+                                        Task { await notificationService.scheduleReminder() }
+                                    } else {
+                                        // Need to request permission
+                                        Task {
+                                            await notificationService.requestPermission()
+                                            await MainActor.run {
+                                                if notificationService.isAuthorized {
+                                                    notificationService.reminderEnabled = true
+                                                    notificationService.saveSettings()
+                                                    Task { await notificationService.scheduleReminder() }
+                                                }
+                                            }
+                                        }
                                     }
+                                } else {
+                                    // User wants to disable reminders
+                                    notificationService.reminderEnabled = false
+                                    notificationService.saveSettings()
+                                    UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
                                 }
                             }
+                        ))
                     }
                     
                     if notificationService.reminderEnabled {

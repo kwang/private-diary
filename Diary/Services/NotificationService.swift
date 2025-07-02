@@ -21,7 +21,7 @@ class NotificationService: ObservableObject {
             let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound])
             isAuthorized = granted
             
-            if granted {
+            if granted && reminderEnabled {
                 await scheduleReminder()
             }
         } catch {
@@ -87,7 +87,7 @@ class NotificationService: ObservableObject {
         }
     }
     
-    private func saveSettings() {
+    func saveSettings() {
         userDefaults.set(reminderTime, forKey: reminderTimeKey)
         userDefaults.set(reminderEnabled, forKey: reminderEnabledKey)
     }
