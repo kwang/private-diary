@@ -86,6 +86,27 @@ Diary/
    - Select your target device/simulator
    - Press `Cmd + R` to build and run
 
+## 🌐 Remote Repository Setup (Optional)
+
+If you want to push this to a remote repository:
+
+### **Option 1: GitHub**
+```bash
+# Create a new repository on GitHub, then:
+git remote add origin https://github.com/kawang/daylink-ios.git
+git branch -M main
+git push -u origin main
+```
+
+### **Option 2: GitLab**
+```bash
+git remote add origin https://gitlab.com/kawang/daylink-ios.git
+git push -u origin main
+```
+
+### **Option 3: Keep Local Only**
+Your repository is perfectly functional as a local Git repo for version control and backup purposes!
+
 ## 🧪 Testing
 
 ### **Simulator vs Device Differences**
@@ -146,6 +167,15 @@ Following Apple's Human Interface Guidelines:
 ## 📄 License
 
 This project is developed for educational and personal use.
+
+## 🔄 Future Development
+
+When you make changes to your app:
+```bash
+git add .
+git commit -m "Your commit message"
+git push  # (if you set up a remote repository)
+```
 
 ## 🤝 Contributing
 
