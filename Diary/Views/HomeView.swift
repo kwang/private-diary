@@ -86,7 +86,7 @@ struct HomeView: View {
                         .padding(.horizontal)
                         
                         List {
-                            ForEach(diaryService.entries.prefix(10)) { entry in
+                            ForEach(diaryService.entries.prefix(3)) { entry in
                                 EntryRow(entry: entry)
                                     .listRowBackground(Color.clear)
                                     .listRowSeparator(.hidden)
@@ -95,29 +95,69 @@ struct HomeView: View {
                             .onDelete(perform: deleteEntries)
                         }
                         .listStyle(PlainListStyle())
-                        .frame(maxHeight: 350)
+                        .frame(maxHeight: 200)
+                    }
+                    
+                    // Calendar Overview
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Calendar Overview")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Spacer()
+                            
+                            Button("View All") {
+                                showingCalendar = true
+                            }
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
+                        }
+                        .padding(.horizontal)
+                        
+                        CompactCalendarView(diaryService: diaryService)
+                            .padding(.horizontal)
                     }
                 } else {
-                    Spacer()
-                    
-                    VStack(spacing: 12) {
-                        Image(systemName: "book.closed")
-                            .font(.system(size: 36))
-                            .foregroundColor(.secondary)
+                    VStack(spacing: 16) {
+                        VStack(spacing: 12) {
+                            Image(systemName: "book.closed")
+                                .font(.system(size: 32))
+                                .foregroundColor(.secondary)
+                            
+                            Text("No entries yet")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Start by creating your first diary entry above")
+                                .font(.caption)  
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
                         
-                        Text("No entries yet")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                            .foregroundColor(.secondary)
-                        
-                        Text("Start by creating your first diary entry above")
-                            .font(.caption)  
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
+                        // Calendar Overview (even when empty)
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Calendar Overview")
+                                    .font(.subheadline)
+                                    .fontWeight(.medium)
+                                
+                                Spacer()
+                                
+                                Button("View All") {
+                                    showingCalendar = true
+                                }
+                                .font(.caption)
+                                .foregroundColor(.accentColor)
+                            }
+                            .padding(.horizontal)
+                            
+                            CompactCalendarView(diaryService: diaryService)
+                                .padding(.horizontal)
+                        }
                     }
-                    .padding()
-                    
-                    Spacer()
                 }
                 
                 Spacer()
@@ -412,6 +452,236 @@ struct FullEntryView: View {
                     .font(.subheadline)
                 }
             }
+        }
+    }
+}
+
+struct CompactCalendarView: View {
+    @ObservedObject var diaryService: DiaryService
+    @State private var currentMonth = Date()
+    @State private var selectedDate = Date()
+    @State private var showingEntriesForDate = false
+    @State private var entriesForSelectedDate: [DiaryEntry] = []
+    
+    private let calendar = Calendar.current
+    private let dateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter
+    }()
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Month Header
+            HStack {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        currentMonth = calendar.date(byAdding: .month, value: -1, to: currentMonth) ?? currentMonth
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentColor)
+                }
+                
+                Spacer()
+                
+                Text(dateFormatter.string(from: currentMonth))
+                    .font(.callout)
+                    .fontWeight(.semibold)
+                
+                Spacer()
+                
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        currentMonth = calendar.date(byAdding: .month, value: 1, to: currentMonth) ?? currentMonth
+                    }
+                } label: {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.accentColor)
+                }
+            }
+            
+            // Compact Calendar Grid
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 7), spacing: 4) {
+                // Days of week header
+                ForEach(calendar.shortWeekdaySymbols, id: \.self) { weekday in
+                    Text(String(weekday.prefix(1)))
+                        .font(.caption2)
+                        .fontWeight(.medium)
+                        .foregroundColor(.secondary)
+                        .frame(width: 24, height: 20)
+                }
+                
+                // Calendar days
+                ForEach(getDaysInMonth(), id: \.self) { date in
+                    CompactCalendarDayView(
+                        date: date,
+                        isCurrentMonth: calendar.isDate(date, equalTo: currentMonth, toGranularity: .month),
+                        isToday: calendar.isDate(date, inSameDayAs: Date()),
+                        hasEntries: hasEntriesForDate(date)
+                    ) {
+                        // Handle tap on calendar day
+                        selectedDate = date
+                        entriesForSelectedDate = getEntriesForDate(date)
+                        if !entriesForSelectedDate.isEmpty {
+                            showingEntriesForDate = true
+                        }
+                    }
+                }
+            }
+            
+            // Quick stats
+            HStack(spacing: 16) {
+                HStack(spacing: 4) {
+                    Text("\(getEntriesForMonth().count)")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Text("entries")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                HStack(spacing: 4) {
+                    Text("\(getActiveDaysThisMonth())")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    Text("active days")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+            }
+        }
+        .padding(12)
+        .background(Color(.systemGray6))
+        .cornerRadius(12)
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color(.systemGray4), lineWidth: 0.5)
+        )
+        .sheet(isPresented: $showingEntriesForDate) {
+            DayEntriesView(
+                date: selectedDate,
+                entries: entriesForSelectedDate
+            )
+        }
+    }
+    
+    // MARK: - Helper Functions
+    private func getDaysInMonth() -> [Date] {
+        guard let monthInterval = calendar.dateInterval(of: .month, for: currentMonth) else {
+            return []
+        }
+        
+        let firstOfMonth = monthInterval.start
+        let firstWeekday = calendar.component(.weekday, from: firstOfMonth)
+        let daysFromPreviousMonth = firstWeekday - 1
+        
+        var days: [Date] = []
+        
+        // Add days from previous month
+        for i in 0..<daysFromPreviousMonth {
+            if let date = calendar.date(byAdding: .day, value: -daysFromPreviousMonth + i, to: firstOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        // Add days from current month
+        let range = calendar.range(of: .day, in: .month, for: currentMonth)!
+        for day in 1...range.count {
+            if let date = calendar.date(byAdding: .day, value: day - 1, to: firstOfMonth) {
+                days.append(date)
+            }
+        }
+        
+        // Add days from next month to fill grid (42 total days)
+        while days.count < 42 {
+            if let lastDate = days.last,
+               let nextDate = calendar.date(byAdding: .day, value: 1, to: lastDate) {
+                days.append(nextDate)
+            } else {
+                break
+            }
+        }
+        
+        return days
+    }
+    
+    private func hasEntriesForDate(_ date: Date) -> Bool {
+        return !getEntriesForDate(date).isEmpty
+    }
+    
+    private func getEntriesForDate(_ date: Date) -> [DiaryEntry] {
+        return diaryService.entries.filter { entry in
+            calendar.isDate(entry.date, inSameDayAs: date)
+        }
+    }
+    
+    private func getEntriesForMonth() -> [DiaryEntry] {
+        return diaryService.entries.filter { entry in
+            calendar.isDate(entry.date, equalTo: currentMonth, toGranularity: .month)
+        }
+    }
+    
+    private func getActiveDaysThisMonth() -> Int {
+        let monthEntries = getEntriesForMonth()
+        let uniqueDays = Set(monthEntries.map { calendar.startOfDay(for: $0.date) })
+        return uniqueDays.count
+    }
+}
+
+struct CompactCalendarDayView: View {
+    let date: Date
+    let isCurrentMonth: Bool
+    let isToday: Bool
+    let hasEntries: Bool
+    let onTap: () -> Void
+    
+    private let dayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter
+    }()
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 1) {
+                Text(dayFormatter.string(from: date))
+                    .font(.caption2)
+                    .fontWeight(isToday ? .bold : .medium)
+                    .foregroundColor(textColor)
+                
+                // Entry indicator
+                Circle()
+                    .fill(hasEntries ? .accentColor : Color.clear)
+                    .frame(width: 3, height: 3)
+            }
+            .frame(width: 24, height: 24)
+            .background(backgroundColor)
+            .cornerRadius(6)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .disabled(!hasEntries) // Only allow tapping if there are entries
+    }
+    
+    private var textColor: Color {
+        if !isCurrentMonth {
+            return .secondary.opacity(0.4)
+        } else if isToday {
+            return .accentColor
+        } else {
+            return .primary
+        }
+    }
+    
+    private var backgroundColor: Color {
+        if isToday {
+            return .accentColor.opacity(0.1)
+        } else {
+            return Color.clear
         }
     }
 }
