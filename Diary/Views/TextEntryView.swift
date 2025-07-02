@@ -55,11 +55,17 @@ struct TextEntryView: View {
                             .fill(Color(.systemGray6))
                             .frame(minHeight: 200)
                         
-                        TextEditor(text: $content)
-                            .padding(12)
-                            .background(Color.clear)
-                            .scrollContentBackground(.hidden)
-                            .font(.body)
+                                            Group {
+                        if #available(iOS 16.0, *) {
+                            TextEditor(text: $content)
+                                .scrollContentBackground(.hidden)
+                        } else {
+                            TextEditor(text: $content)
+                        }
+                    }
+                    .padding(12)
+                    .background(Color.clear)
+                    .font(.body)
                         
                         if content.isEmpty {
                             Text("What's on your mind today?")

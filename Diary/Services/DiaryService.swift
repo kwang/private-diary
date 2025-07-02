@@ -74,7 +74,15 @@ class DiaryService: ObservableObject {
     private func saveToNotes(_ entry: DiaryEntry) async {
         // Request access to reminders (Notes uses EKEntityType.reminder)
         do {
-            let granted = try await eventStore.requestFullAccessToReminders()
+            var granted = false
+            if #available(iOS 17.0, *) {
+                granted = try await eventStore.requestFullAccessToReminders()
+            } else {
+                // Fallback on earlier versions - request basic access
+                let status = EKEventStore.authorizationStatus(for: .reminder)
+                granted = (status == .authorized)
+            }
+            
             if granted {
                 await saveEntryToNotesApp(entry)
             } else {

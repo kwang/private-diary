@@ -133,11 +133,17 @@ struct AudioEntryView: View {
                             .fill(Color(.systemGray6))
                             .frame(minHeight: 100)
                         
-                        TextEditor(text: $notes)
-                            .padding(12)
-                            .background(Color.clear)
-                            .scrollContentBackground(.hidden)
-                            .font(.body)
+                        Group {
+                            if #available(iOS 16.0, *) {
+                                TextEditor(text: $notes)
+                                    .scrollContentBackground(.hidden)
+                            } else {
+                                TextEditor(text: $notes)
+                            }
+                        }
+                        .padding(12)
+                        .background(Color.clear)
+                        .font(.body)
                         
                         if notes.isEmpty {
                             Text("Any additional thoughts to accompany your recording?")
@@ -237,9 +243,9 @@ class AudioRecorder: ObservableObject {
     }
     
     func requestPermission() {
-        AVAudioSession.sharedInstance().requestRecordPermission { granted in
+        AVAudioSession.sharedInstance().requestRecordPermission { [weak self] granted in
             DispatchQueue.main.async {
-                self.hasPermission = granted
+                self?.hasPermission = granted
             }
         }
     }

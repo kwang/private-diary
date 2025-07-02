@@ -9,6 +9,9 @@ struct HomeView: View {
     @State private var showingAudioEntry = false
     @State private var showingVideoEntry = false
     @State private var showingSettings = false
+    @State private var editMode: EditMode = .inactive
+    @State private var showingDeleteAlert = false
+    @State private var entriesToDelete: IndexSet?
     
     var body: some View {
         NavigationView {
@@ -68,17 +71,28 @@ struct HomeView: View {
                             Text("\(diaryService.entries.count) entries")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+                            
+                            Button(editMode == .inactive ? "Edit" : "Done") {
+                                withAnimation {
+                                    editMode = editMode == .inactive ? .active : .inactive
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundColor(.accentColor)
                         }
                         .padding(.horizontal)
                         
-                        ScrollView {
-                            LazyVStack(spacing: 12) {
-                                ForEach(diaryService.entries.prefix(5)) { entry in
-                                    EntryRow(entry: entry)
-                                }
+                        List {
+                            ForEach(diaryService.entries.prefix(10)) { entry in
+                                EntryRow(entry: entry)
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                    .padding(.vertical, 4)
                             }
-                            .padding(.horizontal)
+                            .onDelete(perform: deleteEntries)
                         }
+                        .listStyle(PlainListStyle())
+                        .frame(maxHeight: 400)
                     }
                 } else {
                     Spacer()
@@ -114,6 +128,7 @@ struct HomeView: View {
                     }
                 }
             }
+            .environment(\.editMode, $editMode)
         }
         .sheet(isPresented: $showingTextEntry) {
             TextEntryView(diaryService: diaryService)
@@ -132,6 +147,33 @@ struct HomeView: View {
                 await notificationService.requestPermission()
             }
         }
+        .alert("Delete Entry", isPresented: $showingDeleteAlert) {
+            Button("Cancel", role: .cancel) {
+                entriesToDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                confirmDelete()
+            }
+        } message: {
+            Text("Are you sure you want to delete this diary entry? This action cannot be undone.")
+        }
+    }
+    
+    // MARK: - Delete Functions
+    private func deleteEntries(at offsets: IndexSet) {
+        entriesToDelete = offsets
+        showingDeleteAlert = true
+    }
+    
+    private func confirmDelete() {
+        guard let offsets = entriesToDelete else { return }
+        withAnimation {
+            for index in offsets {
+                let entry = diaryService.entries[index]
+                diaryService.deleteEntry(entry)
+            }
+        }
+        entriesToDelete = nil
     }
 }
 
