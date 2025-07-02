@@ -113,7 +113,7 @@ struct SettingsView: View {
                             .foregroundColor(.accentColor)
                         
                         VStack(alignment: .leading) {
-                            Text("Daylink")
+                            Text("Private Diary")
                                 .font(.headline)
                             
                             Text("Your personal diary companion")

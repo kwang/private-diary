@@ -156,11 +156,11 @@ class DiaryService: ObservableObject {
         }
         
         if entry.type == .audio {
-            noteContent += "\n\n[Audio diary entry recorded in Daylink app]"
+                            noteContent += "\n\n[Audio diary entry recorded in Private Diary app]"
         }
         
         if entry.type == .video {
-            noteContent += "\n\n[Video diary entry recorded in Daylink app]"
+                            noteContent += "\n\n[Video diary entry recorded in Private Diary app]"
         }
         
         return noteContent

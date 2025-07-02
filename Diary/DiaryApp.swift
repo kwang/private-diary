@@ -17,7 +17,7 @@ struct DiaryApp: App {
             ContentView()
                 .onOpenURL { url in
                     // Handle deep links from notifications
-                    if url.scheme == "daylink" {
+                    if url.scheme == "privatediary" {
                         // Open appropriate entry view based on URL
                         print("Opened from notification: \(url)")
                     }

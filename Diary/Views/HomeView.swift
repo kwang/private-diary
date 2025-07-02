@@ -15,7 +15,7 @@ struct HomeView: View {
             VStack(spacing: 24) {
                 // Header
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Daylink")
+                    Text("Private Diary")
                         .font(.largeTitle)
                         .fontWeight(.bold)
                     
