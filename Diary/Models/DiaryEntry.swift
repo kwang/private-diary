@@ -5,12 +5,14 @@ enum EntryType: String, CaseIterable, Codable {
     case text = "✍️ Text"
     case audio = "🎧 Audio"
     case video = "🎥 Video"
+    case photo = "📷 Photo"
     
     var icon: String {
         switch self {
         case .text: return "text.alignleft"
         case .audio: return "mic.fill"
         case .video: return "video.fill"
+        case .photo: return "camera.fill"
         }
     }
 }
@@ -23,6 +25,7 @@ struct DiaryEntry: Identifiable, Codable {
     var content: String
     var audioURL: URL?
     var videoURL: URL?
+    var photoURLs: [URL]?
     var mood: String?
     
     init(type: EntryType, title: String? = nil, content: String = "") {

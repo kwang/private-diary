@@ -71,6 +71,23 @@ class DiaryService: ObservableObject {
         }
     }
     
+    // Save photo file to Documents directory for persistent storage
+    func savePhotoFile(_ image: UIImage) -> URL? {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let fileName = "photo_\(Date().timeIntervalSince1970).jpg"
+        let destinationURL = documentsPath.appendingPathComponent(fileName)
+        
+        do {
+            if let imageData = image.jpegData(compressionQuality: 0.8) {
+                try imageData.write(to: destinationURL)
+                return destinationURL
+            }
+        } catch {
+            print("Error saving photo file: \(error)")
+        }
+        return nil
+    }
+    
     private func saveToNotes(_ entry: DiaryEntry) async {
         // Request access to reminders (Notes uses EKEntityType.reminder)
         do {
@@ -171,6 +188,14 @@ class DiaryService: ObservableObject {
                             noteContent += "\n\n[Video diary entry recorded in Private Diary app]"
         }
         
+        if entry.type == .photo {
+            if let photoURLs = entry.photoURLs {
+                noteContent += "\n\n[Photo diary entry with \(photoURLs.count) photo(s) recorded in Private Diary app]"
+            } else {
+                noteContent += "\n\n[Photo diary entry recorded in Private Diary app]"
+            }
+        }
+        
         return noteContent
     }
     
@@ -181,6 +206,11 @@ class DiaryService: ObservableObject {
         }
         if let videoURL = entry.videoURL {
             try? FileManager.default.removeItem(at: videoURL)
+        }
+        if let photoURLs = entry.photoURLs {
+            for photoURL in photoURLs {
+                try? FileManager.default.removeItem(at: photoURL)
+            }
         }
         
         entries.removeAll { $0.id == entry.id }

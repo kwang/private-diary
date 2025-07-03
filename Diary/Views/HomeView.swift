@@ -8,6 +8,7 @@ struct HomeView: View {
     @State private var showingTextEntry = false
     @State private var showingAudioEntry = false
     @State private var showingVideoEntry = false
+    @State private var showingPhotoEntry = false
     @State private var showingSettings = false
     @State private var showingCalendar = false
     @State private var editMode: EditMode = .inactive
@@ -40,7 +41,6 @@ struct HomeView: View {
                     
                     LazyVGrid(columns: [
                         GridItem(.flexible()),
-                        GridItem(.flexible()),
                         GridItem(.flexible())
                     ], spacing: 12) {
                         EntryTypeButton(
@@ -56,6 +56,11 @@ struct HomeView: View {
                         EntryTypeButton(
                             type: .video,
                             action: { showingVideoEntry = true }
+                        )
+                        
+                        EntryTypeButton(
+                            type: .photo,
+                            action: { showingPhotoEntry = true }
                         )
                     }
                     .padding(.horizontal)
@@ -193,6 +198,9 @@ struct HomeView: View {
         .sheet(isPresented: $showingVideoEntry) {
             VideoEntryView(diaryService: diaryService)
         }
+        .sheet(isPresented: $showingPhotoEntry) {
+            PhotoEntryView(diaryService: diaryService)
+        }
         .sheet(isPresented: $showingSettings) {
             SettingsView(notificationService: notificationService)
         }
@@ -308,6 +316,10 @@ struct EntryRow: View {
                             Image(systemName: "play.circle.fill")
                                 .foregroundColor(.accentColor)
                                 .font(.system(size: 12))
+                        } else if entry.type == .photo {
+                            Image(systemName: "photo.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
                         }
                         
                         Text(entry.timeAgo)
@@ -333,6 +345,16 @@ struct EntryRow: View {
                             .foregroundColor(.secondary)
                             .font(.system(size: 10))
                         Text("Tap to play video")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
+                } else if entry.type == .photo && entry.photoURLs != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                        Text("\(entry.photoURLs?.count ?? 0) photo(s)")
                             .font(.caption2)
                             .foregroundColor(.secondary)
                     }
@@ -403,6 +425,44 @@ struct FullEntryView: View {
                         Text(entry.title)
                             .font(.title3)
                             .fontWeight(.semibold)
+                    }
+                    
+                    // Photos (for photo entries)
+                    if entry.type == .photo, let photoURLs = entry.photoURLs, !photoURLs.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Photos")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                                .modifier(TrackingModifier())
+                            
+                            LazyVGrid(columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ], spacing: 8) {
+                                ForEach(photoURLs.indices, id: \.self) { index in
+                                    AsyncImage(url: photoURLs[index]) { image in
+                                        image
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fill)
+                                    } placeholder: {
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color(.systemGray5))
+                                            .overlay(
+                                                Image(systemName: "photo")
+                                                    .foregroundColor(.secondary)
+                                            )
+                                    }
+                                    .frame(height: 120)
+                                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(Color(.systemGray4), lineWidth: 0.5)
+                                    )
+                                }
+                            }
+                        }
                     }
                     
                     // Content
@@ -664,7 +724,6 @@ struct CompactCalendarDayView: View {
             .cornerRadius(6)
         }
         .buttonStyle(PlainButtonStyle())
-        .disabled(!hasEntries) // Only allow tapping if there are entries
     }
     
     private var textColor: Color {
