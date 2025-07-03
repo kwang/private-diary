@@ -23,6 +23,8 @@ class DiaryService: ObservableObject {
         loadSettings()
         loadEntries()
         
+
+        
         // Auto-sync if enabled and signed in (simulator only)
         #if targetEnvironment(simulator)
         Task {
@@ -32,6 +34,8 @@ class DiaryService: ObservableObject {
         }
         #endif
     }
+    
+
     
     func saveEntry(_ entry: DiaryEntry) {
         entries.insert(entry, at: 0) // Add to beginning for chronological order
@@ -458,4 +462,6 @@ class DiaryService: ObservableObject {
         let fileName = "diary_entry_\(entryID.uuidString).txt"
         return documentsDirectory.appendingPathComponent(fileName)
     }
+    
+
 } 

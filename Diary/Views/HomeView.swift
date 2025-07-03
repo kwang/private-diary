@@ -349,16 +349,32 @@ struct EntryRow: View {
                             .foregroundColor(.secondary)
                     }
                     .padding(.leading, 18)
-                } else if entry.type == .photo && entry.photoURLs != nil {
-                    HStack(spacing: 4) {
-                        Image(systemName: "photo")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 10))
-                        Text("\(entry.photoURLs?.count ?? 0) photo(s)")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                } else if entry.type == .photo, let photoURLs = entry.photoURLs, !photoURLs.isEmpty {
+                    // Display first photo as thumbnail
+                    VStack(alignment: .leading, spacing: 4) {
+                        LocalImageView(url: photoURLs[0], isThumbnail: true)
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 60)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+                            )
+                            .padding(.leading, 18)
+                        
+                        if photoURLs.count > 1 {
+                            HStack(spacing: 4) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .foregroundColor(.secondary)
+                                    .font(.system(size: 10))
+                                Text("+\(photoURLs.count - 1) more")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.leading, 18)
+                        }
                     }
-                    .padding(.leading, 18)
                 }
                 
                 // Mood indicator
@@ -397,6 +413,8 @@ struct EntryRow: View {
 struct FullEntryView: View {
     let entry: DiaryEntry
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedPhotoIndex: Int?
+    @State private var showingPhotoViewer = false
     
     var body: some View {
         NavigationView {
@@ -437,29 +455,24 @@ struct FullEntryView: View {
                                 .textCase(.uppercase)
                                 .modifier(TrackingModifier())
                             
+
                             LazyVGrid(columns: [
                                 GridItem(.flexible()),
                                 GridItem(.flexible())
                             ], spacing: 8) {
                                 ForEach(photoURLs.indices, id: \.self) { index in
-                                    AsyncImage(url: photoURLs[index]) { image in
-                                        image
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                    } placeholder: {
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color(.systemGray5))
-                                            .overlay(
-                                                Image(systemName: "photo")
-                                                    .foregroundColor(.secondary)
-                                            )
-                                    }
-                                    .frame(height: 120)
-                                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 10)
-                                            .stroke(Color(.systemGray4), lineWidth: 0.5)
-                                    )
+                                    LocalImageView(url: photoURLs[index])
+                                        .aspectRatio(contentMode: .fill)
+                                        .frame(height: 120)
+                                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10)
+                                                .stroke(Color(.systemGray4), lineWidth: 0.5)
+                                        )
+                                        .onTapGesture {
+                                            selectedPhotoIndex = index
+                                            showingPhotoViewer = true
+                                        }
                                 }
                             }
                         }
@@ -511,6 +524,13 @@ struct FullEntryView: View {
                     }
                     .font(.subheadline)
                 }
+            }
+        }
+        .sheet(isPresented: $showingPhotoViewer) {
+            if let selectedPhotoIndex = selectedPhotoIndex,
+               let photoURLs = entry.photoURLs,
+               selectedPhotoIndex < photoURLs.count {
+                PhotoViewerView(photoURLs: photoURLs, selectedIndex: selectedPhotoIndex)
             }
         }
     }
@@ -761,6 +781,8 @@ struct TrackingModifier: ViewModifier {
         }
     }
 }
+
+
 
 #Preview {
     HomeView()
