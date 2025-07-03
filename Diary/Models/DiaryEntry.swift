@@ -18,7 +18,7 @@ enum EntryType: String, CaseIterable, Codable {
 }
 
 struct DiaryEntry: Identifiable, Codable {
-    let id = UUID()
+    let id: UUID
     let date: Date
     var title: String
     let type: EntryType
@@ -30,9 +30,19 @@ struct DiaryEntry: Identifiable, Codable {
     var transcription: String?
     
     init(type: EntryType, title: String? = nil, content: String = "") {
+        self.id = UUID()
         self.date = Date()
         self.type = type
         self.title = title ?? "Diary - \(DateFormatter.entryFormatter.string(from: Date()))"
+        self.content = content
+    }
+    
+    // Initialize with specific ID and date for CloudKit sync
+    init(id: UUID, date: Date, type: EntryType, title: String, content: String) {
+        self.id = id
+        self.date = date
+        self.type = type
+        self.title = title
         self.content = content
     }
     

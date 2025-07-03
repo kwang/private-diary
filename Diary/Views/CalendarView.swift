@@ -160,8 +160,15 @@ struct CalendarView: View {
         .sheet(isPresented: $showingEntriesForDate) {
             DayEntriesView(
                 date: selectedDate,
-                entries: entriesForSelectedDate
+                entries: entriesForSelectedDate,
+                diaryService: diaryService
             )
+        }
+        .onChange(of: showingEntriesForDate) { isPresented in
+            if !isPresented {
+                // Refresh entries when sheet is dismissed
+                entriesForSelectedDate = getEntriesForDate(selectedDate)
+            }
         }
     }
     
@@ -326,7 +333,12 @@ struct CalendarDayView: View {
 struct DayEntriesView: View {
     let date: Date
     let entries: [DiaryEntry]
+    let diaryService: DiaryService
     @Environment(\.dismiss) private var dismiss
+    
+    @State private var currentEntries: [DiaryEntry] = []
+    @State private var showingDeleteConfirmation = false
+    @State private var entryToDelete: DiaryEntry?
     
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -344,7 +356,7 @@ struct DayEntriesView: View {
                             .font(.title3)
                             .fontWeight(.semibold)
                         
-                        Text("\(entries.count) \(entries.count == 1 ? "entry" : "entries")")
+                        Text("\(currentEntries.count) \(currentEntries.count == 1 ? "entry" : "entries")")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -352,9 +364,32 @@ struct DayEntriesView: View {
                     .padding(.horizontal)
                     
                     // Entries List
-                    ForEach(entries) { entry in
-                        EntryRow(entry: entry)
-                            .padding(.horizontal)
+                    ForEach(currentEntries) { entry in
+                        DayEntryRow(entry: entry) {
+                            entryToDelete = entry
+                            showingDeleteConfirmation = true
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // Empty state
+                    if currentEntries.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "calendar.badge.exclamationmark")
+                                .font(.system(size: 48))
+                                .foregroundColor(.secondary)
+                            
+                            Text("No entries for this day")
+                                .font(.headline)
+                                .foregroundColor(.secondary)
+                            
+                            Text("Entries you delete will be removed permanently.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 60)
                     }
                 }
                 .padding(.vertical)
@@ -367,6 +402,284 @@ struct DayEntriesView: View {
                         dismiss()
                     }
                     .font(.subheadline)
+                }
+            }
+        }
+        .onAppear {
+            currentEntries = entries
+        }
+        .confirmationDialog(
+            "Delete Entry",
+            isPresented: $showingDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                deleteEntry()
+            }
+            Button("Cancel", role: .cancel) {
+                entryToDelete = nil
+            }
+        } message: {
+            Text("Are you sure you want to delete this diary entry? This action cannot be undone.")
+        }
+    }
+    
+    private func deleteEntry() {
+        guard let entryToDelete = entryToDelete else { return }
+        
+        // Delete from the service
+        diaryService.deleteEntry(entryToDelete)
+        
+        // Update local state
+        currentEntries.removeAll { $0.id == entryToDelete.id }
+        
+        // Clear the entry to delete
+        self.entryToDelete = nil
+        
+        // If no entries left, dismiss the sheet
+        if currentEntries.isEmpty {
+            dismiss()
+        }
+    }
+}
+
+// Custom entry row for the daily view with delete button
+struct DayEntryRow: View {
+    let entry: DiaryEntry
+    let onDelete: () -> Void
+    
+    @State private var showingFullEntry = false
+    @State private var showingAudioPlayer = false
+    @State private var showingVideoPlayer = false
+    
+    var body: some View {
+        // Main entry content with overlay delete button
+        Button {
+            if entry.type == .audio && entry.audioURL != nil {
+                showingAudioPlayer = true
+            } else if entry.type == .video && entry.videoURL != nil {
+                showingVideoPlayer = true
+            } else {
+                showingFullEntry = true
+            }
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
+                    Image(systemName: entry.type.icon)
+                        .foregroundColor(.accentColor)
+                        .font(.system(size: 14))
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(entry.title)
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                            .foregroundColor(.primary)
+                        
+                        if !entry.content.isEmpty {
+                            Text(entry.content)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    VStack(alignment: .trailing, spacing: 2) {
+                        // Media status indicator
+                        if entry.type == .audio || entry.type == .video {
+                            Image(systemName: "play.circle.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
+                        } else if entry.type == .photo {
+                            Image(systemName: "photo.fill")
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 12))
+                        }
+                        
+                        Text(entry.timeAgo)
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                
+                // Media playback indicator
+                if entry.type == .audio && entry.audioURL != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "waveform")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                        Text("Tap to play audio")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
+                } else if entry.type == .video && entry.videoURL != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "video.fill")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                        Text("Tap to play video")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
+                } else if entry.type == .photo && entry.photoURLs != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo")
+                            .foregroundColor(.secondary)
+                            .font(.system(size: 10))
+                        Text("\(entry.photoURLs?.count ?? 0) photo(s)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
+                }
+                
+                // Mood indicator
+                if let mood = entry.mood, !mood.isEmpty {
+                    HStack(spacing: 4) {
+                        Text(mood)
+                            .font(.caption2)
+                        Text("mood")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.leading, 18)
+                }
+            }
+            .padding(12)
+            .background(Color(.systemGray6))
+            .cornerRadius(10)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+        .overlay(
+            // Delete button positioned in bottom-right corner
+            Button {
+                onDelete()
+            } label: {
+                Image(systemName: "trash")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.red)
+                    .frame(width: 20, height: 20)
+                    .background(Color.white)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                    )
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 1)
+            }
+            .buttonStyle(PlainButtonStyle()),
+            alignment: .bottomTrailing
+        )
+        .padding(.trailing, 8)
+        .padding(.bottom, 8)
+        .sheet(isPresented: $showingFullEntry) {
+            EntryDetailView(entry: entry)
+        }
+        .sheet(isPresented: $showingAudioPlayer) {
+            AudioPlayerView(entry: entry)
+        }
+        .sheet(isPresented: $showingVideoPlayer) {
+            VideoDiaryPlayerView(entry: entry)
+        }
+    }
+}
+
+// Simple entry detail view for the calendar
+struct EntryDetailView: View {
+    let entry: DiaryEntry
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // Header
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Image(systemName: entry.type.icon)
+                                .foregroundColor(.accentColor)
+                                .font(.system(size: 16))
+                            
+                            Text(entry.type.rawValue)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            Spacer()
+                            
+                            Text(entry.formattedDate)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Text(entry.title)
+                            .font(.title3)
+                            .fontWeight(.semibold)
+                    }
+                    
+                    // Content
+                    if !entry.content.isEmpty {
+                        Text(entry.content)
+                            .font(.callout)
+                            .lineSpacing(4)
+                    }
+                    
+                    // Mood
+                    if let mood = entry.mood, !mood.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Mood")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            Text(mood)
+                                .font(.callout)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 6)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        }
+                    }
+                    
+                    // Transcription
+                    if let transcription = entry.transcription, !transcription.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Transcription")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                                .textCase(.uppercase)
+                            
+                            Text(transcription)
+                                .font(.callout)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("Entry Details")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }

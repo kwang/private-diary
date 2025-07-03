@@ -265,7 +265,7 @@ struct AudioEntryView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "square.and.arrow.down")
                             .font(.system(size: 14))
-                        Text("Save to Notes")
+                        Text("Save Entry")
                             .font(.subheadline)
                             .fontWeight(.medium)
                     }
@@ -302,7 +302,7 @@ struct AudioEntryView: View {
                 dismiss()
             }
         } message: {
-            Text("Your audio diary entry has been saved and will be shared to Notes.")
+            Text("Your audio diary entry has been saved to local files.")
         }
         .alert("OpenAI API Key Required", isPresented: $showingAPIKeySheet) {
             Button("Cancel", role: .cancel) { }

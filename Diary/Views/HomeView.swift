@@ -202,7 +202,7 @@ struct HomeView: View {
             PhotoEntryView(diaryService: diaryService)
         }
         .sheet(isPresented: $showingSettings) {
-            SettingsView(notificationService: notificationService)
+                                    SettingsView(notificationService: notificationService, diaryService: diaryService)
         }
         .sheet(isPresented: $showingCalendar) {
             CalendarView(diaryService: diaryService)
@@ -625,8 +625,15 @@ struct CompactCalendarView: View {
         .sheet(isPresented: $showingEntriesForDate) {
             DayEntriesView(
                 date: selectedDate,
-                entries: entriesForSelectedDate
+                entries: entriesForSelectedDate,
+                diaryService: diaryService
             )
+        }
+        .onChange(of: showingEntriesForDate) { isPresented in
+            if !isPresented {
+                // Refresh entries when sheet is dismissed
+                entriesForSelectedDate = getEntriesForDate(selectedDate)
+            }
         }
     }
     

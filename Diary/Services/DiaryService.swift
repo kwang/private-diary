@@ -1,24 +1,51 @@
 import Foundation
 import UIKit
-import EventKit
+import SwiftUI
 
 @MainActor
 class DiaryService: ObservableObject {
     @Published var entries: [DiaryEntry] = []
+    @Published var iCloudSyncEnabled = false
     
     private let userDefaults = UserDefaults.standard
     private let entriesKey = "SavedDiaryEntries"
-    private let eventStore = EKEventStore()
+    private let iCloudSyncKey = "iCloudSyncEnabled"
+    private let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    
+    #if targetEnvironment(simulator)
+    @Published var cloudKitService = CloudKitService()
+    #endif
+    
+    @AppStorage("enableAutoSync") var enableAutoSync: Bool = true
+    @AppStorage("lastSyncTime") private var lastSyncTime: Double = 0
     
     init() {
+        loadSettings()
         loadEntries()
+        
+        // Auto-sync if enabled and signed in (simulator only)
+        #if targetEnvironment(simulator)
+        Task {
+            if iCloudSyncEnabled && cloudKitService.isSignedIn {
+                await syncWithiCloud()
+            }
+        }
+        #endif
     }
     
     func saveEntry(_ entry: DiaryEntry) {
         entries.insert(entry, at: 0) // Add to beginning for chronological order
         saveToUserDefaults()
+        
         Task {
-            await saveToNotes(entry)
+            await saveToLocalFile(entry)
+            
+            // Auto-sync to iCloud if enabled (simulator only)
+            #if targetEnvironment(simulator)
+            if iCloudSyncEnabled && cloudKitService.isSignedIn {
+                await syncWithiCloud()
+            }
+            #endif
         }
     }
     
@@ -32,6 +59,73 @@ class DiaryService: ObservableObject {
         if let data = userDefaults.data(forKey: entriesKey),
            let decoded = try? JSONDecoder().decode([DiaryEntry].self, from: data) {
             entries = decoded
+            
+            // Recover broken file paths after loading entries
+            recoverBrokenFilePaths()
+        }
+    }
+    
+    // Recover broken file paths that may have been invalidated by app reinstalls
+    private func recoverBrokenFilePaths() {
+        var needsUpdate = false
+        
+        for i in 0..<entries.count {
+            var entry = entries[i]
+            
+            // Check and recover audio files
+            if let audioURL = entry.audioURL, !FileManager.default.fileExists(atPath: audioURL.path) {
+                if let recoveredURL = recoverAudioFile(from: audioURL) {
+                    entry.audioURL = recoveredURL
+                    entries[i] = entry
+                    needsUpdate = true
+                    print("Recovered audio file: \(recoveredURL.lastPathComponent)")
+                }
+            }
+            
+            // Check and recover video files
+            if let videoURL = entry.videoURL, !FileManager.default.fileExists(atPath: videoURL.path) {
+                if let recoveredURL = recoverVideoFile(from: videoURL) {
+                    entry.videoURL = recoveredURL
+                    entries[i] = entry
+                    needsUpdate = true
+                    print("Recovered video file: \(recoveredURL.lastPathComponent)")
+                }
+            }
+            
+            // Check and recover photo files
+            if let photoURLs = entry.photoURLs {
+                var recoveredPhotoURLs: [URL] = []
+                var photosRecovered = false
+                
+                for photoURL in photoURLs {
+                    if FileManager.default.fileExists(atPath: photoURL.path) {
+                        recoveredPhotoURLs.append(photoURL)
+                    } else {
+                        // Try to recover photo
+                        let fileName = photoURL.lastPathComponent
+                        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                        let expectedURL = documentsPath.appendingPathComponent(fileName)
+                        
+                        if FileManager.default.fileExists(atPath: expectedURL.path) {
+                            recoveredPhotoURLs.append(expectedURL)
+                            photosRecovered = true
+                            print("Recovered photo file: \(fileName)")
+                        }
+                    }
+                }
+                
+                if photosRecovered {
+                    entry.photoURLs = recoveredPhotoURLs.isEmpty ? nil : recoveredPhotoURLs
+                    entries[i] = entry
+                    needsUpdate = true
+                }
+            }
+        }
+        
+        // Save updated entries if any paths were recovered
+        if needsUpdate {
+            saveToUserDefaults()
+            print("Updated \(entries.count) diary entries with recovered file paths")
         }
     }
     
@@ -53,6 +147,31 @@ class DiaryService: ObservableObject {
         }
     }
     
+    // Recover missing audio files by searching for them in the Documents directory
+    func recoverAudioFile(from storedURL: URL) -> URL? {
+        let fileName = storedURL.lastPathComponent
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let expectedURL = documentsPath.appendingPathComponent(fileName)
+        
+        if FileManager.default.fileExists(atPath: expectedURL.path) {
+            return expectedURL
+        }
+        
+        // Try to find the file in the Documents directory
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: nil)
+            for file in contents {
+                if file.lastPathComponent == fileName {
+                    return file
+                }
+            }
+        } catch {
+            print("Error searching for audio file: \(error)")
+        }
+        
+        return nil
+    }
+    
     // Save video file to Documents directory for persistent storage
     func saveVideoFile(_ sourceURL: URL) -> URL? {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -69,6 +188,31 @@ class DiaryService: ObservableObject {
             print("Error saving video file: \(error)")
             return nil
         }
+    }
+    
+    // Recover missing video files by searching for them in the Documents directory
+    func recoverVideoFile(from storedURL: URL) -> URL? {
+        let fileName = storedURL.lastPathComponent
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let expectedURL = documentsPath.appendingPathComponent(fileName)
+        
+        if FileManager.default.fileExists(atPath: expectedURL.path) {
+            return expectedURL
+        }
+        
+        // Try to find the file in the Documents directory
+        do {
+            let contents = try FileManager.default.contentsOfDirectory(at: documentsPath, includingPropertiesForKeys: nil)
+            for file in contents {
+                if file.lastPathComponent == fileName {
+                    return file
+                }
+            }
+        } catch {
+            print("Error searching for video file: \(error)")
+        }
+        
+        return nil
     }
     
     // Save photo file to Documents directory for persistent storage
@@ -88,119 +232,58 @@ class DiaryService: ObservableObject {
         return nil
     }
     
-    private func saveToNotes(_ entry: DiaryEntry) async {
-        // Request access to reminders (Notes uses EKEntityType.reminder)
-        do {
-            var granted = false
-            if #available(iOS 17.0, *) {
-                granted = try await eventStore.requestFullAccessToReminders()
-            } else {
-                // Fallback on earlier versions - request basic access
-                let status = EKEventStore.authorizationStatus(for: .reminder)
-                granted = (status == .authorized)
-            }
-            
-            if granted {
-                await saveEntryToNotesApp(entry)
-            } else {
-                print("Notes access denied, falling back to share sheet")
-                await MainActor.run {
-                    saveToNotesViaShareSheet(entry)
-                }
-            }
-        } catch {
-            print("Error requesting Notes access: \(error)")
-            await MainActor.run {
-                saveToNotesViaShareSheet(entry)
-            }
-        }
-    }
-    
-    private func saveEntryToNotesApp(_ entry: DiaryEntry) async {
-        let noteContent = createNoteContent(entry)
+    private func saveToLocalFile(_ entry: DiaryEntry) async {
+        let fileName = "diary_entry_\(entry.id.uuidString).txt"
+        let fileURL = documentsDirectory.appendingPathComponent(fileName)
         
-        // Create a reminder (which appears in Notes app)
-        let reminder = EKReminder(eventStore: eventStore)
-        reminder.title = entry.title
-        reminder.notes = noteContent
-        reminder.calendar = eventStore.defaultCalendarForNewReminders()
+        let content = createEntryContent(entry)
         
         do {
-            try eventStore.save(reminder, commit: true)
-            print("Successfully saved to Notes app")
+            try content.write(to: fileURL, atomically: true, encoding: .utf8)
+            print("Successfully saved diary entry to local file: \(fileName)")
         } catch {
-            print("Error saving to Notes: \(error)")
-            // Fallback to share sheet
-            await MainActor.run {
-                saveToNotesViaShareSheet(entry)
-            }
+            print("Error saving diary entry to local file: \(error)")
         }
     }
     
-    private func saveToNotesViaShareSheet(_ entry: DiaryEntry) {
-        let noteContent = createNoteContent(entry)
-        
-        // Use share sheet as fallback
-        let activityViewController = UIActivityViewController(
-            activityItems: [noteContent],
-            applicationActivities: nil
-        )
-        
-        // Get the top view controller
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let window = windowScene.windows.first,
-           let rootViewController = window.rootViewController {
-            
-            var topController = rootViewController
-            while let presentedViewController = topController.presentedViewController {
-                topController = presentedViewController
-            }
-            
-            if let popover = activityViewController.popoverPresentationController {
-                popover.sourceView = topController.view
-                popover.sourceRect = CGRect(x: topController.view.bounds.midX, y: topController.view.bounds.midY, width: 0, height: 0)
-                popover.permittedArrowDirections = []
-            }
-            
-            topController.present(activityViewController, animated: true)
-        }
-    }
-    
-    private func createNoteContent(_ entry: DiaryEntry) -> String {
-        var noteContent = """
+    private func createEntryContent(_ entry: DiaryEntry) -> String {
+        var content = """
         \(entry.title)
         
         Date: \(entry.formattedDate)
         Type: \(entry.type.rawValue)
+        Entry ID: \(entry.id.uuidString)
         
         \(entry.content)
         """
         
         if let mood = entry.mood {
-            noteContent += "\n\nMood: \(mood)"
+            content += "\n\nMood: \(mood)"
         }
         
         if let transcription = entry.transcription, !transcription.isEmpty {
-            noteContent += "\n\nTranscription:\n\(transcription)"
+            content += "\n\nTranscription:\n\(transcription)"
         }
         
-        if entry.type == .audio {
-                            noteContent += "\n\n[Audio diary entry recorded in Private Diary app]"
+        // Add file references
+        if let audioURL = entry.audioURL {
+            content += "\n\nAudio File: \(audioURL.lastPathComponent)"
         }
         
-        if entry.type == .video {
-                            noteContent += "\n\n[Video diary entry recorded in Private Diary app]"
+        if let videoURL = entry.videoURL {
+            content += "\n\nVideo File: \(videoURL.lastPathComponent)"
         }
         
-        if entry.type == .photo {
-            if let photoURLs = entry.photoURLs {
-                noteContent += "\n\n[Photo diary entry with \(photoURLs.count) photo(s) recorded in Private Diary app]"
-            } else {
-                noteContent += "\n\n[Photo diary entry recorded in Private Diary app]"
+        if let photoURLs = entry.photoURLs {
+            content += "\n\nPhoto Files:"
+            for photoURL in photoURLs {
+                content += "\n- \(photoURL.lastPathComponent)"
             }
         }
         
-        return noteContent
+        content += "\n\n---\nSaved from Private Diary App\n\(Date().formatted(date: .complete, time: .complete))"
+        
+        return content
     }
     
     func deleteEntry(_ entry: DiaryEntry) {
@@ -217,7 +300,162 @@ class DiaryService: ObservableObject {
             }
         }
         
+        // Delete associated text file
+        let fileName = "diary_entry_\(entry.id.uuidString).txt"
+        let fileURL = documentsDirectory.appendingPathComponent(fileName)
+        try? FileManager.default.removeItem(at: fileURL)
+        
         entries.removeAll { $0.id == entry.id }
         saveToUserDefaults()
+    }
+    
+    // Manual recovery function that can be triggered by users
+    func recoverAllMissingFiles() {
+        recoverBrokenFilePaths()
+    }
+    
+    // Get statistics about missing files
+    var missingFileStats: (audio: Int, video: Int, photos: Int) {
+        var audioMissing = 0
+        var videoMissing = 0
+        var photosMissing = 0
+        
+        for entry in entries {
+            if let audioURL = entry.audioURL, !FileManager.default.fileExists(atPath: audioURL.path) {
+                audioMissing += 1
+            }
+            if let videoURL = entry.videoURL, !FileManager.default.fileExists(atPath: videoURL.path) {
+                videoMissing += 1
+            }
+            if let photoURLs = entry.photoURLs {
+                for photoURL in photoURLs {
+                    if !FileManager.default.fileExists(atPath: photoURL.path) {
+                        photosMissing += 1
+                    }
+                }
+            }
+        }
+        
+        return (audioMissing, videoMissing, photosMissing)
+    }
+    
+    // MARK: - iCloud Sync Management
+    
+    private func loadSettings() {
+        iCloudSyncEnabled = userDefaults.bool(forKey: iCloudSyncKey)
+    }
+    
+    func setiCloudSyncEnabled(_ enabled: Bool) {
+        iCloudSyncEnabled = enabled
+        userDefaults.set(enabled, forKey: iCloudSyncKey)
+        
+        #if targetEnvironment(simulator)
+        if enabled && cloudKitService.isSignedIn {
+            Task {
+                await syncWithiCloud()
+            }
+        }
+        #endif
+    }
+    
+    func syncWithiCloud() async {
+        #if targetEnvironment(simulator)
+        guard iCloudSyncEnabled && cloudKitService.isSignedIn else { return }
+        
+        let success = await cloudKitService.syncDiaryEntries(entries)
+        if success {
+            await MainActor.run {
+                lastSyncTime = Date().timeIntervalSince1970
+            }
+        }
+        #else
+        // CloudKit not available on device - do nothing
+        print("CloudKit sync not available on device builds")
+        #endif
+    }
+    
+    func downloadFromiCloud() async {
+        #if targetEnvironment(simulator)
+        guard iCloudSyncEnabled && cloudKitService.isSignedIn else { return }
+        
+        let cloudEntries = await cloudKitService.fetchDiaryEntries()
+        
+        await MainActor.run {
+            // Merge cloud entries with local entries
+            var mergedEntries = entries
+            
+            for cloudEntry in cloudEntries {
+                if !mergedEntries.contains(where: { $0.id == cloudEntry.id }) {
+                    mergedEntries.append(cloudEntry)
+                }
+            }
+            
+            // Sort by date
+            mergedEntries.sort { $0.date > $1.date }
+            entries = mergedEntries
+            
+            saveToUserDefaults()
+            lastSyncTime = Date().timeIntervalSince1970
+        }
+        #else
+        // CloudKit not available on device - do nothing
+        print("CloudKit download not available on device builds")
+        #endif
+    }
+    
+    func triggerManualSync() async {
+        #if targetEnvironment(simulator)
+        await cloudKitService.triggerManualSync(entries: entries)
+        await MainActor.run {
+            if let syncDate = cloudKitService.lastSyncDate {
+                lastSyncTime = syncDate.timeIntervalSince1970
+            }
+        }
+        #else
+        // CloudKit not available on device - do nothing
+        print("CloudKit manual sync not available on device builds")
+        #endif
+    }
+    
+    // Check if iCloud is available and user is signed in
+    var canUseiCloud: Bool {
+        #if targetEnvironment(simulator)
+        return cloudKitService.isSignedIn
+        #else
+        return false
+        #endif
+    }
+    
+    var iCloudStatus: String {
+        #if targetEnvironment(simulator)
+        if cloudKitService.isLoading {
+            return "Checking iCloud status..."
+        } else if cloudKitService.isSignedIn {
+            return "iCloud Available"
+        } else {
+            return cloudKitService.errorMessage ?? "iCloud not available"
+        }
+        #else
+        return "iCloud not available (device build)"
+        #endif
+    }
+    
+    // MARK: - Local Files Management
+    
+    func listSavedDiaryFiles() -> [String] {
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: documentsDirectory, includingPropertiesForKeys: nil)
+            return files.filter { $0.pathExtension == "txt" && $0.lastPathComponent.starts(with: "diary_entry_") }
+                       .map { $0.lastPathComponent }
+                       .sorted()
+        } catch {
+            print("Error listing diary files: \(error)")
+            return []
+        }
+    }
+    
+    func getDiaryFilePath(for entryID: UUID) -> URL {
+        let fileName = "diary_entry_\(entryID.uuidString).txt"
+        return documentsDirectory.appendingPathComponent(fileName)
     }
 } 
