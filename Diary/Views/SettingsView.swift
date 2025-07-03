@@ -6,6 +6,9 @@ struct SettingsView: View {
     
     @State private var defaultEntryType: EntryType = .text
     @State private var showingTimePicker = false
+    @State private var apiKey: String = ""
+    @State private var showingAPIKeySheet = false
+    @State private var apiKeyConfigured = false
     
     var body: some View {
         NavigationView {
@@ -138,6 +141,49 @@ struct SettingsView: View {
                     }
                 }
                 
+                // Speech to Text Section
+                Section("Speech to Text") {
+                    HStack {
+                        Image(systemName: "waveform.and.mic")
+                            .foregroundColor(.accentColor)
+                            .font(.system(size: 14))
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("OpenAI API Key")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                            
+                            Text(apiKeyConfigured ? "Configured" : "Not configured")
+                                .font(.caption2)
+                                .foregroundColor(apiKeyConfigured ? .green : .orange)
+                        }
+                        
+                        Spacer()
+                        
+                        Button(apiKeyConfigured ? "Update" : "Configure") {
+                            showingAPIKeySheet = true
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Transcribe your audio and video recordings using OpenAI's Whisper API.")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        
+                        HStack {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 10))
+                            
+                            Text("Get your API key from platform.openai.com/account/api-keys")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                
                 // About Section
                 Section("About") {
                     HStack {
@@ -198,12 +244,33 @@ struct SettingsView: View {
                 }
             )
         }
+        .sheet(isPresented: $showingAPIKeySheet) {
+            APIKeyConfigurationView(
+                apiKey: $apiKey,
+                onSave: { key in
+                    OpenAITranscriptionService.saveAPIKey(key)
+                    apiKeyConfigured = true
+                    apiKey = "" // Clear the field for security
+                },
+                onCancel: {
+                    apiKey = ""
+                }
+            )
+        }
+        .onAppear {
+            checkAPIKeyConfiguration()
+        }
     }
     
     private var timeFormatter: DateFormatter {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter
+    }
+    
+    private func checkAPIKeyConfiguration() {
+        let storedAPIKey = OpenAITranscriptionService.getStoredAPIKey()
+        apiKeyConfigured = !storedAPIKey.isEmpty
     }
 }
 
@@ -245,6 +312,102 @@ struct TimePickerView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+struct APIKeyConfigurationView: View {
+    @Binding var apiKey: String
+    let onSave: (String) -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    @State private var tempAPIKey: String = ""
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("OpenAI API Key")
+                        .font(.headline)
+                        .padding(.horizontal)
+                    
+                    Text("Enter your OpenAI API key to enable speech-to-text transcription for audio and video recordings.")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("API Key")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .padding(.horizontal)
+                    
+                    TextField("sk-...", text: $tempAPIKey)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .font(.system(.body, design: .monospaced))
+                        .padding(.horizontal)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                }
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                            .font(.system(size: 14))
+                        
+                        Text("How to get your API key:")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                    }
+                    .padding(.horizontal)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("1. Go to platform.openai.com")
+                        Text("2. Sign in to your account")
+                        Text("3. Navigate to API Keys section")
+                        Text("4. Create a new secret key")
+                        Text("5. Copy and paste it here")
+                    }
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal)
+                }
+                
+                Spacer()
+                
+                VStack(spacing: 8) {
+                    Button("Save API Key") {
+                        if !tempAPIKey.isEmpty {
+                            onSave(tempAPIKey)
+                            dismiss()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(tempAPIKey.isEmpty)
+                    
+                    Button("Cancel") {
+                        onCancel()
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+            }
+            .navigationTitle("API Key Setup")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            tempAPIKey = apiKey
         }
     }
 }

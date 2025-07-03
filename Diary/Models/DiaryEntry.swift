@@ -27,6 +27,7 @@ struct DiaryEntry: Identifiable, Codable {
     var videoURL: URL?
     var photoURLs: [URL]?
     var mood: String?
+    var transcription: String?
     
     init(type: EntryType, title: String? = nil, content: String = "") {
         self.date = Date()

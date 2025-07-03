@@ -7,11 +7,14 @@ struct VideoEntryView: View {
     @Environment(\.dismiss) private var dismiss
     
     @StateObject private var videoRecorder = VideoRecorder()
+    @StateObject private var transcriptionService = OpenAITranscriptionService.createWithStoredAPIKey()
     @State private var title = ""
     @State private var notes = ""
     @State private var mood = ""
+    @State private var transcription = ""
     @State private var showingSaveAlert = false
     @State private var showingCamera = false
+    @State private var showingAPIKeySheet = false
     
     private let moods = ["😊", "😔", "😤", "😌", "🤔", "😴", "🥳", "😰", "❤️", "🙄"]
     
@@ -132,6 +135,80 @@ struct VideoEntryView: View {
                 }
                 .padding(.horizontal)
                 
+                // Transcription Section
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("Speech to Text")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                        
+                        Spacer()
+                        
+                        if videoRecorder.videoURL != nil {
+                            Button {
+                                Task {
+                                    await transcribeVideo()
+                                }
+                            } label: {
+                                HStack(spacing: 4) {
+                                    if transcriptionService.isTranscribing {
+                                        ProgressView()
+                                            .scaleEffect(0.8)
+                                    } else {
+                                        Image(systemName: "waveform.and.mic")
+                                            .font(.caption)
+                                    }
+                                    Text(transcriptionService.isTranscribing ? "Transcribing..." : "Transcribe")
+                                        .font(.caption)
+                                }
+                            }
+                            .disabled(transcriptionService.isTranscribing)
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    
+                    if !transcription.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Transcription:")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            Text(transcription)
+                                .font(.callout)
+                                .padding(12)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(.systemGray4), lineWidth: 0.5)
+                                )
+                            
+                            HStack {
+                                Button("Use as Notes") {
+                                    notes = transcription
+                                }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                                
+                                Button("Copy") {
+                                    UIPasteboard.general.string = transcription
+                                }
+                                .font(.caption)
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                    }
+                    
+                    if let error = transcriptionService.transcriptionError {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .padding(.top, 4)
+                    }
+                }
+                .padding(.horizontal)
+                
                 // Notes Section
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Additional Notes (Optional)")
@@ -219,19 +296,48 @@ struct VideoEntryView: View {
         } message: {
             Text("Your video diary entry has been saved and will be shared to Notes.")
         }
+        .alert("OpenAI API Key Required", isPresented: $showingAPIKeySheet) {
+            Button("Cancel", role: .cancel) { }
+            Button("Go to Settings") {
+                // Navigate to settings or show instructions
+                if let settingsUrl = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(settingsUrl)
+                }
+            }
+        } message: {
+            Text("To use speech-to-text transcription, please configure your OpenAI API key in the Settings.")
+        }
     }
     
     private func saveEntry() {
         var entry = DiaryEntry(type: .video, title: title, content: notes)
         entry.mood = mood.isEmpty ? nil : mood
+        entry.transcription = transcription.isEmpty ? nil : transcription
         
         // Save video file to persistent storage
         if let tempURL = videoRecorder.videoURL {
             entry.videoURL = diaryService.saveVideoFile(tempURL)
+            
+            // Clean up temporary video file after copying
+            try? FileManager.default.removeItem(at: tempURL)
         }
         
         diaryService.saveEntry(entry)
         showingSaveAlert = true
+    }
+    
+    private func transcribeVideo() async {
+        guard let videoURL = videoRecorder.videoURL else { return }
+        
+        // Check if API key is configured
+        if OpenAITranscriptionService.getStoredAPIKey().isEmpty {
+            showingAPIKeySheet = true
+            return
+        }
+        
+        if let result = await transcriptionService.transcribeVideo(fileURL: videoURL) {
+            transcription = result
+        }
     }
 }
 

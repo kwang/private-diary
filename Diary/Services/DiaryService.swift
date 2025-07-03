@@ -180,6 +180,10 @@ class DiaryService: ObservableObject {
             noteContent += "\n\nMood: \(mood)"
         }
         
+        if let transcription = entry.transcription, !transcription.isEmpty {
+            noteContent += "\n\nTranscription:\n\(transcription)"
+        }
+        
         if entry.type == .audio {
                             noteContent += "\n\n[Audio diary entry recorded in Private Diary app]"
         }

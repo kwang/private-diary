@@ -110,7 +110,16 @@ struct VideoDiaryPlayerView: View {
     }
     
     private func setupPlayer() {
-        guard let videoURL = entry.videoURL else { return }
+        guard let videoURL = entry.videoURL else { 
+            print("No video URL found for entry: \(entry.title)")
+            return 
+        }
+        
+        // Check if file exists first
+        guard FileManager.default.fileExists(atPath: videoURL.path) else {
+            print("Video file not found at: \(videoURL.path)")
+            return
+        }
         
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .moviePlayback)

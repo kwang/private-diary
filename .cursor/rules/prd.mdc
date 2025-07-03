@@ -1,5 +1,158 @@
 ---
-description:
-globs:
+description: 
+globs: 
 alwaysApply: false
 ---
+# 📘 Product Requirements Document (PRD)
+
+## Product Name: **Daylink – Audio/Video Diary App**
+
+---
+
+## 🧫 Overview
+
+**Objective**:
+Build an iOS application that allows users to record personal diaries via **text**, **audio**, or **video**, and save entries directly to the native **Notes app**. Users can set **reminders** that link back to Daylink to prompt journaling behavior.
+
+---
+
+## 🎯 Goals
+
+* Enable users to **create and store diary entries** in various formats (text/audio/video).
+* Seamlessly **save diary entries to the Notes app** with appropriate metadata.
+* Offer a **reminder system** that links directly to the app for quick entry.
+* Maintain a **minimal, intuitive UX** to support emotional expression and routine journaling.
+
+---
+
+## 🧑‍💻 Target Users
+
+* iOS users aged 15+, especially those interested in wellness, journaling, and habit tracking.
+* Users who prefer privacy and simplicity (no cloud backend, uses Notes app storage).
+* Creatives and professionals who reflect via voice/video notes.
+
+---
+
+## 🧹 Features
+
+### 1. **Home Screen**
+
+* "Start Entry" button with options:
+
+  * ✍️ Text
+  * 🎧 Audio
+  * 🎥 Video
+* Display recent entries (links to Notes app, read-only)
+
+---
+
+### 2. **Diary Entry Modes**
+
+#### a. **Text Mode**
+
+* Rich text editor (basic formatting)
+* Auto-title based on timestamp (editable)
+* “Save to Notes” on completion
+
+#### b. **Audio Mode**
+
+* Record audio (AVFoundation)
+* Playback before saving
+* Optional transcription (future version)
+* Saves both audio and text summary to Notes
+
+#### c. **Video Mode**
+
+* Record via front/back camera
+* Preview and re-record option
+* Saves video to Notes as file attachment + timestamp/description
+
+---
+
+### 3. **Reminder System**
+
+* User sets **daily/weekly custom reminders**
+* Reminders use **UNNotification** framework
+* Notification opens Daylink directly via deep link
+* Optional smart suggestions (e.g., “Haven’t written in 3 days”)
+
+---
+
+### 4. **Notes App Integration**
+
+* Use `EventKit` or `NoteKit` (private APIs require workaround or share sheet)
+* Diary entries saved to a dedicated **“Daylink Diary” folder in Notes**
+
+  * Title: `Diary - [Date/Time]`
+  * Metadata: mood (optional), entry type (text/audio/video)
+  * Attachment: text, audio or video file
+
+> *If direct Notes API is not viable due to Apple sandboxing, fallback via `UIActivityViewController` share sheet to prefill Notes.*
+
+---
+
+### 5. **Settings**
+
+* Default entry type (text/audio/video)
+* Reminder frequency (daily, custom time)
+* Auto-save to Notes toggle
+* Dark mode support
+
+---
+
+### 6. **Onboarding Flow**
+
+* Brief intro (1–2 screens)
+* Ask for permissions:
+
+  * Microphone
+  * Camera
+  * Notifications
+  * Access to Notes (via share sheet or Files)
+
+---
+
+## 🔐 Privacy & Security
+
+* No cloud storage or server-side logging
+* Everything stored locally or in Apple Notes
+* App does **not access** existing Notes unless user permits
+
+---
+
+## 🛠 Tech Stack
+
+* Language: Swift, SwiftUI
+* Frameworks: AVFoundation, UserNotifications, UIKit, SwiftUI
+* Device: iPhone (iOS 16+)
+* Deployment: TestFlight + App Store
+
+---
+
+## 📊 Success Metrics
+
+* # of entries created weekly
+* Reminder open rate
+* % of users using more than one mode (text/audio/video)
+* Average session duration
+
+---
+
+## 🗓 Timeline (MVP)
+
+| Phase                 | Timeline | Deliverables                        |
+| --------------------- | -------- | ----------------------------------- |
+| 🧪 Design & Prototype | Week 1–2 | Wireframes, interaction flows       |
+| ⚙️ Dev Sprint 1       | Week 3–4 | Text diary, Notes saving            |
+| 🎧 Dev Sprint 2       | Week 5–6 | Audio/video recording, media export |
+| ⏰ Dev Sprint 3        | Week 7   | Reminder system, deep linking       |
+| 🧪 QA & Polish        | Week 8   | UX testing, bug fixes               |
+| 🚀 Launch             | Week 9   | TestFlight + App Store submission   |
+
+---
+
+## 📝 Open Questions
+
+* Can the app use Notes app API directly or must rely on share sheet?
+* Should there be mood tagging or emoji-based sentiment tagging?
+* Any need for optional iCloud sync in future versions?

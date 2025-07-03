@@ -62,38 +62,59 @@ struct AudioPlayerView: View {
                     .padding(.horizontal)
                 }
                 
-                // Playback controls
-                HStack(spacing: 40) {
-                    Button {
-                        audioPlayer.skipBackward()
-                    } label: {
-                        Image(systemName: "gobackward.15")
-                            .font(.title2)
-                            .foregroundColor(.primary)
+                // Playback controls or error state
+                if !audioPlayer.canPlay && entry.audioURL != nil {
+                    // Show error state if audio URL exists but can't be played
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 48))
+                            .foregroundColor(.orange)
+                        
+                        Text("Audio file not found")
+                            .font(.headline)
+                            .foregroundColor(.orange)
+                        
+                        Text("This audio recording may have been removed or corrupted.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
-                    .disabled(!audioPlayer.canPlay)
-                    
-                    Button {
-                        if audioPlayer.isPlaying {
-                            audioPlayer.pause()
-                        } else {
-                            audioPlayer.play()
+                    .padding()
+                } else {
+                    // Normal playback controls
+                    HStack(spacing: 40) {
+                        Button {
+                            audioPlayer.skipBackward()
+                        } label: {
+                            Image(systemName: "gobackward.15")
+                                .font(.title2)
+                                .foregroundColor(.primary)
                         }
-                    } label: {
-                        Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                            .font(.system(size: 60))
-                            .foregroundColor(.accentColor)
+                        .disabled(!audioPlayer.canPlay)
+                        
+                        Button {
+                            if audioPlayer.isPlaying {
+                                audioPlayer.pause()
+                            } else {
+                                audioPlayer.play()
+                            }
+                        } label: {
+                            Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
+                                .font(.system(size: 60))
+                                .foregroundColor(.accentColor)
+                        }
+                        .disabled(!audioPlayer.canPlay)
+                        
+                        Button {
+                            audioPlayer.skipForward()
+                        } label: {
+                            Image(systemName: "goforward.15")
+                                .font(.title2)
+                                .foregroundColor(.primary)
+                        }
+                        .disabled(!audioPlayer.canPlay)
                     }
-                    .disabled(!audioPlayer.canPlay)
-                    
-                    Button {
-                        audioPlayer.skipForward()
-                    } label: {
-                        Image(systemName: "goforward.15")
-                            .font(.title2)
-                            .foregroundColor(.primary)
-                    }
-                    .disabled(!audioPlayer.canPlay)
                 }
                 
                 // Additional notes
@@ -149,6 +170,8 @@ struct AudioPlayerView: View {
         .onAppear {
             if let audioURL = entry.audioURL {
                 audioPlayer.loadAudio(from: audioURL)
+            } else {
+                print("No audio URL found for entry: \(entry.title)")
             }
         }
         .onDisappear {
@@ -206,6 +229,13 @@ class AudioPlayerManager: ObservableObject {
     }
     
     func loadAudio(from url: URL) {
+        // Check if file exists first
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("Audio file not found at: \(url.path)")
+            canPlay = false
+            return
+        }
+        
         do {
             // Configure audio session
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
