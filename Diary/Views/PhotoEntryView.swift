@@ -2,7 +2,6 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-@available(iOS 15.0, *)
 struct PhotoEntryView: View {
     @ObservedObject var diaryService: DiaryService
     @Environment(\.dismiss) private var dismiss
@@ -10,7 +9,7 @@ struct PhotoEntryView: View {
     @State private var title = ""
     @State private var content = ""
     @State private var selectedImages: [UIImage] = []
-    @State private var selectedPhotos: [Any] = [] // Using Any for iOS 15 compatibility
+    @State private var selectedPhotos: [PhotosPickerItem] = []
     @State private var showingImagePicker = false
     @State private var showingCamera = false
     @State private var mood = ""
@@ -22,27 +21,56 @@ struct PhotoEntryView: View {
         NavigationView {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    // Title Input
+                    // Title Section
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Title")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.headline)
+                            .foregroundColor(.primary)
                         
-                        TextField("Enter title...", text: $title)
+                        TextField("Enter diary title", text: $title)
                             .textFieldStyle(RoundedBorderTextFieldStyle())
                     }
                     
-                    // Photo Selection Section
+                    // Content Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Content")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextEditor(text: $content)
+                            .frame(minHeight: 150)
+                            .padding(8)
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(Color(.systemGray4), lineWidth: 1)
+                            )
+                    }
+                    
+                    // Mood Section
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Mood")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        TextField("How are you feeling?", text: $mood)
+                            .textFieldStyle(RoundedBorderTextFieldStyle())
+                    }
+                    
+                    // Photo Section
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Photos")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
+                            .font(.headline)
+                            .foregroundColor(.primary)
                         
+                        // Photo picker buttons
                         HStack(spacing: 12) {
-                            Button(action: {
+                            // Camera button
+                            Button {
                                 sourceType = .camera
-                                showingCamera = true
-                            }) {
+                                showingImagePicker = true
+                            } label: {
                                 Label("Camera", systemImage: "camera")
                                     .font(.caption)
                                     .foregroundColor(.white)
@@ -52,61 +80,40 @@ struct PhotoEntryView: View {
                                     .cornerRadius(8)
                             }
                             
-                            if #available(iOS 16.0, *) {
-                                PhotosPicker(
-                                    selection: Binding(
-                                        get: { selectedPhotos as? [PhotosPickerItem] ?? [] },
-                                        set: { 
-                                            selectedPhotos = $0
-                                            loadSelectedPhotos()
-                                        }
-                                    ),
-                                    maxSelectionCount: 5,
-                                    matching: .images
-                                ) {
-                                    Label("Photo Library", systemImage: "photo.on.rectangle")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(Color.green)
-                                        .cornerRadius(8)
-                                }
-                            } else {
-                                Button(action: {
-                                    sourceType = .photoLibrary
-                                    showingImagePicker = true
-                                }) {
-                                    Label("Photo Library", systemImage: "photo.on.rectangle")
-                                        .font(.caption)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 8)
-                                        .background(Color.green)
-                                        .cornerRadius(8)
-                                }
+                            // PhotosPicker for iOS 16+
+                            PhotosPicker(
+                                selection: $selectedPhotos,
+                                maxSelectionCount: 5,
+                                matching: .images
+                            ) {
+                                Label("Photo Library", systemImage: "photo.on.rectangle")
+                                    .font(.caption)
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color.green)
+                                    .cornerRadius(8)
+                            }
+                            .onChange(of: selectedPhotos) { _ in
+                                loadSelectedPhotos()
                             }
                         }
                         
-                        // Selected Photos Grid
+                        // Selected photos display
                         if !selectedImages.isEmpty {
-                            LazyVGrid(columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ], spacing: 8) {
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 3), spacing: 8) {
                                 ForEach(selectedImages.indices, id: \.self) { index in
                                     ZStack(alignment: .topTrailing) {
                                         Image(uiImage: selectedImages[index])
                                             .resizable()
                                             .aspectRatio(contentMode: .fill)
-                                            .frame(width: 100, height: 100)
+                                            .frame(width: 80, height: 80)
                                             .clipped()
                                             .cornerRadius(8)
                                         
-                                        Button(action: {
+                                        Button {
                                             selectedImages.remove(at: index)
-                                        }) {
+                                        } label: {
                                             Image(systemName: "xmark.circle.fill")
                                                 .foregroundColor(.white)
                                                 .background(Color.red)
@@ -119,34 +126,11 @@ struct PhotoEntryView: View {
                         }
                     }
                     
-                    // Content Input
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Caption")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        TextEditor(text: $content)
-                            .frame(minHeight: 120)
-                            .padding(8)
-                            .background(Color(.systemGray6))
-                            .cornerRadius(8)
-                    }
-                    
-                    // Mood Input
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Mood (Optional)")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        
-                        TextField("How are you feeling?", text: $mood)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                    }
-                    
                     Spacer()
                 }
                 .padding()
             }
-            .navigationTitle("Photo Entry")
+            .navigationTitle("New Photo Entry")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -163,35 +147,24 @@ struct PhotoEntryView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingCamera) {
-            ImagePicker(sourceType: sourceType) { image in
-                selectedImages.append(image)
-            }
-        }
         .sheet(isPresented: $showingImagePicker) {
-            ImagePicker(sourceType: sourceType) { image in
-                selectedImages.append(image)
-            }
+            ImagePicker(sourceType: sourceType, selectedImages: $selectedImages)
         }
         .alert("Error", isPresented: $showingAlert) {
             Button("OK") { }
         } message: {
             Text(alertMessage)
         }
-        .onAppear {
-            title = "Photo Entry - \(DateFormatter.entryFormatter.string(from: Date()))"
-        }
     }
     
-    @available(iOS 16.0, *)
     private func loadSelectedPhotos() {
-        guard let photosPickerItems = selectedPhotos as? [PhotosPickerItem] else { return }
+        guard !selectedPhotos.isEmpty else { return }
         
         Task {
             var newImages: [UIImage] = []
             
-            for photo in photosPickerItems {
-                if let data = try? await photo.loadTransferable(type: Data.self),
+            for item in selectedPhotos {
+                if let data = try? await item.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
                     newImages.append(image)
                 }
@@ -205,9 +178,13 @@ struct PhotoEntryView: View {
     }
     
     private func saveEntry() {
-        guard !selectedImages.isEmpty else { return }
+        var entry = DiaryEntry(
+            type: .photo,
+            title: title.isEmpty ? "Untitled Entry" : title,
+            content: content
+        )
         
-        var entry = DiaryEntry(type: .photo, title: title.isEmpty ? nil : title, content: content)
+        // Set additional properties
         entry.mood = mood.isEmpty ? nil : mood
         
         // Save photos and collect URLs
@@ -220,19 +197,17 @@ struct PhotoEntryView: View {
         
         if !photoURLs.isEmpty {
             entry.photoURLs = photoURLs
-            diaryService.saveEntry(entry)
-            dismiss()
-        } else {
-            alertMessage = "Failed to save photos. Please try again."
-            showingAlert = true
         }
+        
+        diaryService.saveEntry(entry)
+        dismiss()
     }
 }
 
-// Image Picker for Camera and Photo Library
+// MARK: - ImagePicker for camera
 struct ImagePicker: UIViewControllerRepresentable {
     let sourceType: UIImagePickerController.SourceType
-    let onImagePicked: (UIImage) -> Void
+    @Binding var selectedImages: [UIImage]
     @Environment(\.dismiss) private var dismiss
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
@@ -257,7 +232,7 @@ struct ImagePicker: UIViewControllerRepresentable {
         
         func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
             if let image = info[.originalImage] as? UIImage {
-                parent.onImagePicked(image)
+                parent.selectedImages.append(image)
             }
             parent.dismiss()
         }

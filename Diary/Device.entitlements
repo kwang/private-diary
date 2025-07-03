@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- No CloudKit entitlements for device builds -->
+	<!-- CloudKit entitlements removed for personal development team compatibility -->
+	<!-- Physical device builds will not have iCloud sync capability -->
+	<!-- Simulator builds use Diary.entitlements which includes CloudKit -->
 </dict>
 </plist> 

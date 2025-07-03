@@ -23,12 +23,40 @@ class CloudKitService: ObservableObject {
     
     init() {
         self.privateDatabase = container.privateCloudDatabase
-        checkAccountStatus()
+        if isCloudKitAvailable() {
+            checkAccountStatus()
+        } else {
+            isSignedIn = false
+            syncStatus = .error
+            errorMessage = "CloudKit is not available on this device (requires paid Apple Developer account for device builds)"
+        }
+    }
+    
+    // MARK: - CloudKit Availability
+    
+    private func isCloudKitAvailable() -> Bool {
+        // Check if CloudKit is available by testing if we can access the container
+        // This will detect missing entitlements for device builds
+        let container = CKContainer.default()
+        
+        // Try to get container identifier - this will fail if entitlements are missing
+        guard container.containerIdentifier != nil else {
+            print("CloudKit not available: Missing container identifier (likely missing entitlements)")
+            return false
+        }
+        
+        return true
     }
     
     // MARK: - Account Management
     
     func checkAccountStatus() {
+        guard isCloudKitAvailable() else {
+            syncStatus = .error
+            errorMessage = "CloudKit is not available on this device"
+            return
+        }
+        
         isLoading = true
         
         container.accountStatus { [weak self] status, error in
@@ -74,6 +102,14 @@ class CloudKitService: ObservableObject {
     // MARK: - Sync Operations
     
     func syncDiaryEntries(_ entries: [DiaryEntry]) async -> Bool {
+        guard isCloudKitAvailable() else {
+            await MainActor.run {
+                syncStatus = .error
+                errorMessage = "CloudKit is not available on this device"
+            }
+            return false
+        }
+        
         guard isSignedIn else {
             await MainActor.run {
                 syncStatus = .noAccount
@@ -147,6 +183,14 @@ class CloudKitService: ObservableObject {
     }
     
     func fetchDiaryEntries() async -> [DiaryEntry] {
+        guard isCloudKitAvailable() else {
+            await MainActor.run {
+                syncStatus = .error
+                errorMessage = "CloudKit is not available on this device"
+            }
+            return []
+        }
+        
         guard isSignedIn else {
             await MainActor.run {
                 syncStatus = .noAccount

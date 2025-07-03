@@ -774,11 +774,7 @@ struct CompactCalendarDayView: View {
 
 struct TrackingModifier: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(iOS 16.0, *) {
-            content.tracking(0.5)
-        } else {
-            content
-        }
+        content.tracking(0.5)
     }
 }
 

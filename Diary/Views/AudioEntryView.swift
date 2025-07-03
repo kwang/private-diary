@@ -232,14 +232,8 @@ struct AudioEntryView: View {
                                     .stroke(Color(.systemGray4), lineWidth: 0.5)
                             )
                         
-                        Group {
-                            if #available(iOS 16.0, *) {
-                                TextEditor(text: $notes)
-                                    .scrollContentBackground(.hidden)
-                            } else {
-                                TextEditor(text: $notes)
-                            }
-                        }
+                        TextEditor(text: $notes)
+                            .scrollContentBackground(.hidden)
                         .padding(12)
                         .background(Color.clear)
                         .font(.callout)

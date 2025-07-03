@@ -68,14 +68,8 @@ struct TextEntryView: View {
                                     .stroke(Color(.systemGray4), lineWidth: 0.5)
                             )
                         
-                        Group {
-                            if #available(iOS 16.0, *) {
-                                TextEditor(text: $content)
-                                    .scrollContentBackground(.hidden)
-                            } else {
-                                TextEditor(text: $content)
-                            }
-                        }
+                        TextEditor(text: $content)
+                            .scrollContentBackground(.hidden)
                         .padding(12)
                         .background(Color.clear)
                         .font(.callout)
